@@ -1,0 +1,3 @@
+{
+  "extends": "@chi-and-rose/config/tsconfig.base.json"
+}
