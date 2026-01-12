@@ -22,7 +22,23 @@ app.use(
   }),
 );
 
-app.all("/api/auth{/*path}", toNodeHandler(auth));
+// Mount Better-Auth handler BEFORE express.json()
+// Better-Auth handles its own body parsing, so it should be mounted first
+const authHandler = toNodeHandler(auth);
+
+// Debug: Log all requests to see what's happening
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/auth")) {
+    console.log(`[Debug] Request to ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`);
+  }
+  next();
+});
+
+// Mount Better-Auth handler
+// Mount at /api/auth - express will strip the prefix
+app.use("/api/auth", authHandler);
+
+app.use(express.json()); // Parse JSON bodies for other routes AFTER Better-Auth
 
 const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
@@ -44,23 +60,24 @@ const apiHandler = new OpenAPIHandler(appRouter, {
   ],
 });
 
-app.use(async (req, res, next) => {
+// Mount oRPC handlers - use app.use with path to match /rpc and /rpc/*
+app.use("/rpc", async (req, res, next) => {
   const rpcResult = await rpcHandler.handle(req, res, {
     prefix: "/rpc",
     context: await createContext({ req }),
   });
   if (rpcResult.matched) return;
+  next();
+});
 
+app.use("/api-reference", async (req, res, next) => {
   const apiResult = await apiHandler.handle(req, res, {
     prefix: "/api-reference",
     context: await createContext({ req }),
   });
   if (apiResult.matched) return;
-
   next();
 });
-
-app.use(express.json());
 
 app.get("/", (_req, res) => {
   res.status(200).send("OK");

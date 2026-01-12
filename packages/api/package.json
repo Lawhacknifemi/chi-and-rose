@@ -20,6 +20,8 @@
     "@orpc/zod": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
+    "nanoid": "^5.0.7",
     "zod": "catalog:"
   },
   "devDependencies": {

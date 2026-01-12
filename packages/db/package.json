@@ -10,10 +10,11 @@
     }
   },
   "scripts": {
-    "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:push": "bun --env-file=../../apps/server/.env run scripts/push-schema.ts",
+    "db:push:interactive": "bun --env-file=../../apps/server/.env run drizzle-kit push",
+    "db:generate": "bun --env-file=../../apps/server/.env run drizzle-kit generate",
+    "db:studio": "bun --env-file=../../apps/server/.env run drizzle-kit studio",
+    "db:migrate": "bun --env-file=../../apps/server/.env run drizzle-kit migrate"
   },
   "dependencies": {
     "@chi-and-rose/env": "workspace:*",
