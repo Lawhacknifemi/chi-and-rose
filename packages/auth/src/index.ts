@@ -28,8 +28,18 @@ export const auth = betterAuth({
       });
     },
   },
-  // Note: OAuth providers (Google, Apple) can be added here when needed
-  // These are for authentication (signing in with Google/Apple accounts)
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID || "",
+      clientSecret: env.GOOGLE_CLIENT_SECRET || "",
+      enabled: !!env.GOOGLE_CLIENT_ID,
+    },
+    apple: {
+      clientId: env.APPLE_CLIENT_ID || "",
+      clientSecret: env.APPLE_CLIENT_SECRET || "",
+      enabled: !!env.APPLE_CLIENT_ID,
+    },
+  },
   // This is SEPARATE from Google Play/App Store purchase verification
   advanced: {
     defaultCookieAttributes: {

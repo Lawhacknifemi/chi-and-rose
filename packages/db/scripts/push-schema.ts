@@ -124,7 +124,74 @@ async function pushSchema() {
     `);
     console.log("✓ Created mobile_subscription indexes");
 
+    // Create user_profile table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "user_profile" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
+        "conditions" TEXT[] NOT NULL DEFAULT '{}',
+        "symptoms" TEXT[] NOT NULL DEFAULT '{}',
+        "goals" TEXT[] NOT NULL DEFAULT '{}',
+        "dietary_preferences" TEXT[] NOT NULL DEFAULT '{}',
+        "sensitivities" TEXT[] NOT NULL DEFAULT '{}',
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created user_profile table");
+
+    // Create products_cache table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "products_cache" (
+        "barcode" TEXT PRIMARY KEY,
+        "source" TEXT NOT NULL,
+        "name" TEXT,
+        "brand" TEXT,
+        "category" TEXT,
+        "ingredients_raw" TEXT,
+        "ingredients_parsed" JSONB,
+        "nutrition" JSONB,
+        "last_fetched" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created products_cache table");
+
+    // Create scan table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "scan" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" TEXT NOT NULL,
+        "barcode" TEXT NOT NULL,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created scan table");
+
+    // Create ingredient_rule table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "ingredient_rule" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "ingredient_name" TEXT NOT NULL UNIQUE,
+        "tags" TEXT[] NOT NULL DEFAULT '{}',
+        "avoid_for" TEXT[] NOT NULL DEFAULT '{}',
+        "caution_for" TEXT[] NOT NULL DEFAULT '{}',
+        "explanation" TEXT,
+        "confidence" REAL DEFAULT 1.0 NOT NULL
+      )
+    `);
+    console.log("✓ Created ingredient_rule table");
+
+    // Create indexes for new tables
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS "user_profile_userId_idx" ON "user_profile"("user_id");
+      CREATE INDEX IF NOT EXISTS "scan_userId_idx" ON "scan"("user_id");
+      CREATE INDEX IF NOT EXISTS "scan_barcode_idx" ON "scan"("barcode");
+      CREATE INDEX IF NOT EXISTS "ingredient_rule_name_idx" ON "ingredient_rule"("ingredient_name");
+    `);
+    console.log("✓ Created new table indexes");
+
     console.log("\n✅ All tables created successfully!");
+
     process.exit(0);
   } catch (error) {
     console.error("❌ Error creating tables:", error);

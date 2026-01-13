@@ -1,6 +1,7 @@
 import type { RouterClient } from "@orpc/server";
-
 import { protectedProcedure, publicProcedure } from "../index";
+import * as healthRouter from "./health";
+import * as scannerRouter from "./scanner";
 import * as subscriptionsRouter from "./subscriptions";
 
 export const appRouter = {
@@ -20,6 +21,14 @@ export const appRouter = {
     getSubscriptions: subscriptionsRouter.getSubscriptions,
     hasAccess: subscriptionsRouter.hasAccess,
     syncSubscription: subscriptionsRouter.syncSubscription,
+  },
+  health: {
+    getProfile: healthRouter.getProfile,
+    updateProfile: healthRouter.updateProfile,
+  },
+  scanner: {
+    scanBarcode: scannerRouter.scanBarcode,
+    getIngredientInsight: scannerRouter.getIngredientInsight,
   },
 };
 export type AppRouter = typeof appRouter;
