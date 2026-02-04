@@ -104,16 +104,30 @@ app.use((req, res, next) => {
 
 // ... (skipping RPC Handler setup lines)
 
-// Create oRPC handler
+// -------------------------------------------------------------------------
+// DEBUGGING: Define Local Router to bypass Cross-Package Symbol Mismatch
+// -------------------------------------------------------------------------
+import { os } from "@orpc/server";
+const o = os.$context<{}>();
+
+const testRouter = o.router({
+  healthCheck: o.handler(() => "OK (Local Router)"),
+  // Mock other routes so server doesn't crash on startup if it checks keys
+  health: {
+    getProfile: o.handler(() => ({})),
+  }
+});
+
+// Create oRPC handler using LOCAL router
 const rpcHandler = new RPCHandler({
-  router: appRouter,
+  router: testRouter, // <--- CHANGED THIS
   createContext,
   onError,
 });
 
-// Create OpenAPI handler
+// Create OpenAPI handler using LOCAL router
 const apiHandler = new OpenAPIHandler({
-  router: appRouter,
+  router: testRouter, // <--- CHANGED THIS
   createContext,
   onError,
   converter: new ZodToJsonSchemaConverter(),
@@ -140,6 +154,7 @@ app.use("/", async (req, res, next) => {
   next();
 });
 
+/* 
 app.use("/api-reference", async (req, res, next) => {
   const apiResult = await apiHandler.handle(req, res, {
     prefix: "/api-reference",
@@ -148,6 +163,7 @@ app.use("/api-reference", async (req, res, next) => {
   if (apiResult.matched) return;
   next();
 });
+*/
 
 // Root route removed to avoid conflict with Web Dashboard in DigitalOcean
 // app.get("/", (_req, res) => {
