@@ -153,11 +153,14 @@ app.use("/rpc", async (req, res, next) => {
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
-  const rpcResult = await rpcHandler.handle(req, res, {
+  const result = await rpcHandler.handle(req, res, {
     prefix: "",
     context: await createContext({ req }),
   });
-  if (rpcResult.matched) return;
+
+  console.log(`[RPC Fallback] handled: matched=${result.matched}, url=${req.url}, path=${req.path}`);
+
+  if (result.matched) return;
   next();
 });
 
@@ -223,7 +226,6 @@ app.get("/login/:provider", (req, res) => {
 
   const apiUrl = "/api/auth/sign-in/social";
   // We use this server as the intermediate callback to capture the token
-  // We use this server as the intermediate callback to capture the token
   // We explicitly encode the final destination in the query param 'target'
   // Use localhost to match BETTER_AUTH_URL env var
   const bridgeUrl = `http://localhost:3000/login/success?target=${encodeURIComponent(callbackURL as string)}`;
@@ -258,18 +260,34 @@ app.get("/debug-env", (req, res) => {
     AUTH_OPTIONS_BASE: auth.options.baseURL,
     CORS_ORIGIN: process.env.CORS_ORIGIN,
     HEADERS_ORIGIN: req.headers.origin,
-    HEADERS_HOST: req.headers.host
+    HEADERS_HOST: req.headers.host,
+    DB_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1] : "Undefined"
   });
 });
 
-app.listen(3000, () => {
+app.listen(3000, async () => {
   console.log("Server is running on http://0.0.0.0:3000");
   console.log("Google Client ID present:", !!env.GOOGLE_CLIENT_ID);
-  if (env.GOOGLE_CLIENT_ID) {
-    console.log("Google Client ID prefix:", env.GOOGLE_CLIENT_ID.substring(0, 5) + "...");
-  }
 
   // Inspect the actual Better-Auth configuration
   console.log("Auth Config BaseURL:", auth.options.baseURL);
   console.log("Auth Config Google Enabled:", auth.options.socialProviders?.google?.enabled);
+
+  // -------------------------------------------------------------------------
+  // DB CONNECTION CHECK
+  // -------------------------------------------------------------------------
+  try {
+    const dbUrl = process.env.DATABASE_URL || "undefined";
+    const maskedUrl = dbUrl.includes("@") ? "postgres://*****@" + dbUrl.split("@")[1] : "INVALID_FORMAT";
+    console.log(`[DB Debug] Attempting to connect to DB at: ${maskedUrl}`);
+
+    // Simple query to verify connection
+    // Note: 'db' is the Drizzle instance. We need raw query or generic execute if possible.
+    // If not, we trust the first request will trigger it, but logging the URL structure helps.
+    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
+      console.warn("[DB WARNING] DATABASE_URL points to localhost! This will fail in Docker unless you are using host networking or a sidecar.");
+    }
+  } catch (err) {
+    console.error("[DB Debug] Initial Check Failed:", err);
+  }
 });
