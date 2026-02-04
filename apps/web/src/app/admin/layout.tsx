@@ -9,12 +9,21 @@ export default async function AdminLayout({
     children: React.ReactNode;
 }) {
     console.log("AdminLayout: Fetching session...");
-    const session = await authClient.getSession({
-        fetchOptions: {
-            headers: await headers(),
-            throw: true,
-        },
-    });
+    let session;
+    try {
+        session = await authClient.getSession({
+            fetchOptions: {
+                headers: await headers(),
+                throw: true, // This throws if fetch fails, so we catch it below
+            },
+        });
+    } catch (error) {
+        console.error("AdminLayout: Failed to fetch session (likely API connection error):", error);
+        // If API is down or unreachable, we shouldn't crash with 500.
+        // Redirect to login or show an error state is safer.
+        redirect("/login?error=connection_failed");
+    }
+
     console.log("AdminLayout: Session result:", session?.user ? "User Found" : "No User", session?.user?.role);
 
     if (!session?.user) {

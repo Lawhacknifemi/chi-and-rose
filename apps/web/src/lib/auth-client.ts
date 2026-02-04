@@ -4,8 +4,14 @@ import { createAuthClient } from "better-auth/react";
 
 console.log("[Auth Client] Initializing with BaseURL:", env.NEXT_PUBLIC_SERVER_URL);
 
+const baseURL = typeof window === "undefined"
+  ? (process.env.INTERNAL_API_URL || env.NEXT_PUBLIC_SERVER_URL)
+  : env.NEXT_PUBLIC_SERVER_URL;
+
+console.log("[Auth Client] Resolved BaseURL:", baseURL);
+
 export const authClient = createAuthClient({
-  baseURL: env.NEXT_PUBLIC_SERVER_URL,
+  baseURL,
   basePath: "/api/auth", // Must match Express mounting path
   plugins: [polarClient()],
 });
