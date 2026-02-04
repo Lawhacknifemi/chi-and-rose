@@ -58,7 +58,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           onClick={async () => {
             await authClient.signIn.social({
               provider: "google",
-              callbackURL: "http://localhost:3001/dashboard",
+              callbackURL: `${window.location.origin}/dashboard`,
             });
           }}
         >
