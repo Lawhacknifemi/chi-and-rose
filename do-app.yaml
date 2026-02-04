@@ -1,0 +1,50 @@
+name: chi-and-rose
+region: nyc
+services:
+- name: api-server
+  github:
+    repo: Lawhacknifemi/chi-and-rose
+    branch: master
+    deploy_on_push: true
+  dockerfile_path: apps/server/Dockerfile
+  source_dir: /
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  routes:
+  - path: /
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: DATABASE_URL
+    value: PLACEHOLDER_ENTER_YOUR_DB_URL_IN_DASHBOARD
+  - key: BETTER_AUTH_SECRET
+    value: GENERATE_A_RANDOM_STRING_HERE
+  - key: BETTER_AUTH_URL
+    value: ${APP_URL}
+  - key: CORS_ORIGIN
+    value: ${APP_URL}
+  - key: CLOUDINARY_CLOUD_NAME
+    value: dawxj7cns
+
+- name: web-dashboard
+  github:
+    repo: Lawhacknifemi/chi-and-rose
+    branch: master
+    deploy_on_push: true
+  dockerfile_path: apps/web/Dockerfile
+  source_dir: /
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  routes:
+  - path: /
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: NEXT_PUBLIC_SERVER_URL
+    value: ${api-server.APP_URL}
+  - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    value: dawxj7cns
+  - key: NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    value: Chrose
