@@ -151,27 +151,25 @@ app.use("/rpc", async (req, res, next) => {
   next();
 });
 
+// -------------------------------------------------------------------------
+// EXPLICIT HEALTH CHECK (Bypass ORPC matching issues)
+// This guarantees the Load Balancer gets a 200 OK immediately.
+// -------------------------------------------------------------------------
+app.all("/healthCheck", (req, res) => {
+  res.status(200).send("OK");
+});
+
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
-  // Fix 404: ORPC expects paths WITHOUT leading slash when prefix is empty
-  // E.g. Request "/" -> "healthCheck" (handled by strip)
-  // Actually, ORPC router definitions keys like "healthCheck" match against the path.
-  // If req.url is "/healthCheck", and prefix "", it matches "/healthCheck".
-  // BUT: The issue might be that prefix handling in @orpc/server is strict.
-  // Let's try forcing the URL to NOT have a leading slash if possible, OR
-  // ensure the prefix matches what comes in.
+  // Reverted manual slash stripping (caused url.parse error)
 
-  // V2 Fix: Strip leading slash manually just in case
-  if (req.url.startsWith("/")) {
-    req.url = req.url.substring(1);
-  }
-
+  // Try matching with prefix "/" which is standard for root-mounted routers
   const result = await rpcHandler.handle(req, res, {
-    prefix: "", // We stripped the path from req.url, so it is cleaner
+    prefix: "/",
     context: await createContext({ req }),
   });
 
-  console.log(`[RPC Fallback v2] handled: matched=${result.matched}, modifiedUrl=${req.url}, path=${req.path}`);
+  console.log(`[RPC Fallback v3] handled: matched=${result.matched}, url=${req.url}, path=${req.path}`);
 
   if (result.matched) return;
   next();
