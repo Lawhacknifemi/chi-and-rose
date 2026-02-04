@@ -13,7 +13,8 @@ if [ "$SERVICE" = "web" ]; then
 elif [ "$SERVICE" = "server" ]; then
     echo "Launching API Server..."
     # Execute the compiled API server
-    exec bun dist/index.js
+    # tsdown produces .mjs for module projects
+    exec bun dist/index.mjs
 else
     echo "Error: Unknown APP_SERVICE '$SERVICE'. Must be 'web' or 'server'."
     exit 1
