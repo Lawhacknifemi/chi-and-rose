@@ -6,7 +6,7 @@ services:
     repo: Lawhacknifemi/chi-and-rose
     branch: master
     deploy_on_push: true
-  dockerfile_path: apps/server/Dockerfile
+  dockerfile_path: Dockerfile
   source_dir: /
   http_port: 3000
   instance_count: 1
@@ -19,7 +19,8 @@ services:
   envs:
   - key: NODE_ENV
     value: production
-  - key: DATABASE_URL
+  - key: APP_SERVICE
+    value: server
   - key: DATABASE_URL
     value: postgresql://placeholder:password@hostname:5432/db?sslmode=require
   - key: BETTER_AUTH_SECRET
@@ -36,7 +37,7 @@ services:
     repo: Lawhacknifemi/chi-and-rose
     branch: master
     deploy_on_push: true
-  dockerfile_path: apps/web/Dockerfile
+  dockerfile_path: Dockerfile
   source_dir: /
   http_port: 3000
   instance_count: 1
@@ -46,6 +47,8 @@ services:
   envs:
   - key: NODE_ENV
     value: production
+  - key: APP_SERVICE
+    value: web
   - key: NEXT_PUBLIC_SERVER_URL
     value: ${APP_URL}
   - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
