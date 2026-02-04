@@ -154,9 +154,10 @@ app.use("/rpc", async (req, res, next) => {
 // -------------------------------------------------------------------------
 // EXPLICIT HEALTH CHECK (Bypass ORPC matching issues)
 // This guarantees the Load Balancer gets a 200 OK immediately.
+// We return JSON string "OK" so the ORPC Client can parse it without error.
 // -------------------------------------------------------------------------
 app.all("/healthCheck", (req, res) => {
-  res.status(200).send("OK");
+  res.status(200).json("OK");
 });
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
