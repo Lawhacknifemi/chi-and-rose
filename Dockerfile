@@ -33,7 +33,8 @@ ENV PORT=3000
 # Copy Next.js Web Artifacts
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
+# public folder does not exist in this project
+# COPY --from=builder /app/apps/web/public ./apps/web/public
 
 # Copy API Server Artifacts
 # We copy the built 'dist' folder to the root 'dist' in runner for simplicity
