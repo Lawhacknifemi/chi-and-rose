@@ -10,11 +10,10 @@ if [ "$SERVICE" = "web" ]; then
     echo "Launching Web Dashboard (Next.js)..."
     # Execute the standalone Next.js server
     exec bun apps/web/server.js
-elif [ "$SERVICE" = "server" ]; then
+    elif [ "$SERVICE" = "server" ]; then
     echo "Launching API Server..."
-    # Execute the compiled API server
-    # tsdown produces .mjs for module projects
-    exec bun dist/index.mjs
+    # Execute the compiled API server binary
+    exec ./server
 else
     echo "Error: Unknown APP_SERVICE '$SERVICE'. Must be 'web' or 'server'."
     exit 1

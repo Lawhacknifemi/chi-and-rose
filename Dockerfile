@@ -19,9 +19,9 @@ ENV SKIP_ENV_VALIDATION=1
 ENV NEXT_PUBLIC_SERVER_URL="http://placeholder"
 RUN bun run build
 
-# 2. Build Server (TSDown / Bun)
+# 2. Build Server (Bun Compile -> Single Binary)
 WORKDIR /app/apps/server
-RUN bun run build
+RUN bun run compile
 
 # --- Runner Stage ---
 FROM oven/bun:1-slim AS runner
@@ -37,8 +37,8 @@ COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 # COPY --from=builder /app/apps/web/public ./apps/web/public
 
 # Copy API Server Artifacts
-# We copy the built 'dist' folder to the root 'dist' in runner for simplicity
-COPY --from=builder /app/apps/server/dist ./dist
+# we copy the compiled binary 'server'
+COPY --from=builder /app/apps/server/server ./server
 
 # Copy Entrypoint
 COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
