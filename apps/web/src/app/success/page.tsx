@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SuccessPage() {
+function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const checkout_id = searchParams.get("checkout_id");
@@ -23,5 +23,13 @@ export default function SuccessPage() {
       {checkout_id && <p>Checkout ID: {checkout_id}</p>}
       <p>Redirecting to dashboard...</p>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading success details...</div>}>
+      <SuccessContent />
+    </Suspense>
   );
 }
