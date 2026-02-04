@@ -3,8 +3,8 @@ import { z } from "zod";
 
 export const env = createEnv({
   client: {
-    // If skipping validation, allow anything, otherwise require URL
-    NEXT_PUBLIC_SERVER_URL: process.env.SKIP_ENV_VALIDATION ? z.string().optional() : z.url(),
+    // Relaxed to string to allow relative paths (e.g. "/api") or placeholders during build
+    NEXT_PUBLIC_SERVER_URL: z.string().min(1),
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().optional(),
     NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET: z.string().optional(),
   },
