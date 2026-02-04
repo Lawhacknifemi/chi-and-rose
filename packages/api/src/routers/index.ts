@@ -8,7 +8,8 @@ import * as usersRouter from "./users";
 
 console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 
-export const appRouter = {
+// Explicitly define router using builder to ensure symbols are attached
+export const appRouter = publicProcedure.router({
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
@@ -57,6 +58,6 @@ export const appRouter = {
     updateUserPlan: usersRouter.updateUserPlan,
     deleteUser: usersRouter.deleteUser,
   },
-};
+});
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;
