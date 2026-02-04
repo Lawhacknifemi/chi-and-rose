@@ -70,85 +70,46 @@ app.use(
 
 // 1. Better-Auth Handler
 // Mount Better-Auth FIRST to ensure it handles its own body parsing and requests.
-// We strictly intercept /api/auth/* requests here and do NOT call next() if handled.
+// Support both /api/auth (Standard) and /auth (Stripped by DigitalOcean key)
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/auth")) {
-    // console.log(`[Auth Proxy] ${req.method} ${req.url}`); 
+  if (req.path.startsWith("/api/auth") || req.path.startsWith("/auth")) {
     return authHandler(req, res);
   }
   next();
 });
 
 // 2. Global Body Parsing
-// Skip for /api/auth (Better-Auth handles it)
-// Enable for everything else (including /rpc) so we can manually pass the parsed body
-// 2. Global Body Parsing
-// Skip for /api/auth (Better-Auth handles it) AND /rpc (ORPC handles it)
+// Skip for Auth and RPC
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/auth") || req.path.startsWith("/rpc")) {
+  const isAuth = req.path.startsWith("/api/auth") || req.path.startsWith("/auth");
+  // RPC check is tricky without prefix, but we can assume anything not auth/login might be RPC if we are strictly the API server
+  // For safety, we just allow body parsing generally unless it's strictly excluded
+  if (isAuth) {
     next();
   } else {
     express.json()(req, res, next);
   }
 });
 
-// ... (skipping lines 93-181) ...
+// ... (skipping RPC Handler setup lines)
 
-const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    async (options: any) => {
-      const { next } = options;
-      // Input Bridge Interceptor
-      // Since we use express.json() globally, the raw stream is consumed.
-      // We must manually bridge the parsed req.body from Express to the ORPC StandardRequest.
-      // console.log("[Interceptor] Keys:", Object.keys(options));
-      const expressReq = options.context?.req;
-      if (expressReq && expressReq.body) {
-        const parsedBody = expressReq.body;
-        // console.log("[Interceptor] Bridge Active. Body Type:", typeof parsedBody);
-
-        const bodyString = JSON.stringify(parsedBody);
-
-        // Force override the consumed request methods
-        Object.defineProperty(options.request, 'json', {
-          value: async () => {
-            // console.log("[Interceptor] request.json() called.");
-            return parsedBody;
-          },
-          configurable: true
-        });
-
-        Object.defineProperty(options.request, 'text', {
-          value: async () => bodyString,
-          configurable: true
-        });
-      }
-      return next(options);
-    },
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
-
-const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
-});
-
-// Mount oRPC handlers - use app.use with path to match /rpc and /rpc/*
+// Mount oRPC handlers
+// 1. Try standard /rpc prefix
 app.use("/rpc", async (req, res, next) => {
   const rpcResult = await rpcHandler.handle(req, res, {
     prefix: "/rpc",
+    context: await createContext({ req }),
+  });
+  if (rpcResult.matched) return;
+  next();
+});
+
+// 2. Try Root (If DigitalOcean stripped /rpc)
+app.use("/", async (req, res, next) => {
+  // We only attempt this if it hasn't been handled yet
+  const rpcResult = await rpcHandler.handle(req, res, {
+    prefix: "", // No prefix, treat URL as /procedureName
     context: await createContext({ req }),
   });
   if (rpcResult.matched) return;
