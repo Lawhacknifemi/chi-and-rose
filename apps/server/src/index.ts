@@ -107,6 +107,10 @@ app.use((req, res, next) => {
 // -------------------------------------------------------------------------
 // DEBUGGING: Define Local Router to bypass Cross-Package Symbol Mismatch
 // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+// DEBUGGING: Define Local Router to bypass Cross-Package Symbol Mismatch
+// -------------------------------------------------------------------------
+/*
 import { os } from "@orpc/server";
 const o = os.$context<{}>();
 
@@ -117,22 +121,25 @@ const testRouter = o.router({
     getProfile: o.handler(() => ({})),
   }
 });
+*/
 
-// Create oRPC handler using LOCAL router
+// Create oRPC handler using REAL appRouter
 const rpcHandler = new RPCHandler({
-  router: testRouter, // <--- CHANGED THIS
+  router: appRouter, // <--- Reverted to appRouter
   createContext,
   onError,
 });
 
-// Create OpenAPI handler using LOCAL router
+/*
+// Create OpenAPI handler (DISABLED: Crashing server with Symbol Mismatch)
 const apiHandler = new OpenAPIHandler({
-  router: testRouter, // <--- CHANGED THIS
+  router: appRouter, 
   createContext,
   onError,
   converter: new ZodToJsonSchemaConverter(),
   plugins: [new OpenAPIReferencePlugin()],
 });
+*/
 
 // Mount oRPC handlers
 app.use("/rpc", async (req, res, next) => {
