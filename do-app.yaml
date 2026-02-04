@@ -20,7 +20,8 @@ services:
   - key: NODE_ENV
     value: production
   - key: DATABASE_URL
-    value: PLACEHOLDER_ENTER_YOUR_DB_URL_IN_DASHBOARD
+  - key: DATABASE_URL
+    value: postgresql://placeholder:password@hostname:5432/db?sslmode=require
   - key: BETTER_AUTH_SECRET
     value: GENERATE_A_RANDOM_STRING_HERE
   - key: BETTER_AUTH_URL

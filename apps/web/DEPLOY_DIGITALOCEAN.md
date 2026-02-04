@@ -48,6 +48,13 @@ DigitalOcean will try to detect the service. We will configure it manually for D
 
     *> **Note on URLs**: You won't know the exact URL until created. You can use `${APP_URL}` in DigitalOcean, or update this later once the app is live.*
 
+### ⚠️ Important: Force Docker Build
+DigitalOcean might try to auto-detect "Node.js" or "Functions" when you select the Root directory. You **must** override this:
+1.  Click the **Edit (Pencil)** icon next to the service name.
+2.  Look for **Build Strategy** (or "Settings" > "Build").
+3.  Change it from **Buildpacks** to **Dockerfile**.
+4.  Then set the **Dockerfile Path** to `apps/server/Dockerfile` (for server) or `apps/web/Dockerfile` (for web).
+
 ## Step 4: Configure Component 2 (Web Dashboard)
 Add a second component to the SAME app.
 
