@@ -14,7 +14,7 @@ import cors from "cors";
 import express from "express";
 
 // Debug Import
-console.log("[DEBUG] Server importing appRouter...", appRouter);
+// console.log("[DEBUG] Server importing appRouter...", appRouter); // Removed verbose logging
 if (!appRouter) {
   console.error("[CRITICAL] appRouter is UNDEFINED! Check circular dependencies or export issues.");
 }
