@@ -7,6 +7,7 @@ import * as schema from "./schema";
 
 export * from "./schema";
 export * from "drizzle-orm";
+export * from "./provision";
 
 const { Pool } = pg;
 

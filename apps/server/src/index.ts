@@ -1,7 +1,7 @@
 import { createContext } from "@chi-and-rose/api/context";
 import { appRouter } from "@chi-and-rose/api/routers/index";
 import { auth, sendEmail } from "@chi-and-rose/auth";
-import { db, user, eq } from "@chi-and-rose/db";
+import { db, user, eq, provisionDatabase } from "@chi-and-rose/db";
 import { env } from "@chi-and-rose/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -277,7 +277,19 @@ app.get("/debug-env", (req, res) => {
   });
 });
 
+
+
 app.listen(3000, async () => {
+  console.log("---------------------------------------------");
+  console.log("🚀 Server Starting...");
+
+  // SELF-PROVISIONING: Ensure DB tables exist
+  try {
+    await provisionDatabase();
+  } catch (err) {
+    console.error("[CRITICAL] Failed to provision database:", err);
+  }
+
   console.log("Server is running on http://0.0.0.0:3000");
   console.log("Google Client ID present:", !!env.GOOGLE_CLIENT_ID);
 
