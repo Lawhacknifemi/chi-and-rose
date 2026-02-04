@@ -1,6 +1,6 @@
 
 
-FROM oven/bun:1.1.38 AS builder
+FROM oven/bun:1.2.0 AS builder
 WORKDIR /app
 
 # Copy the entire monorepo
