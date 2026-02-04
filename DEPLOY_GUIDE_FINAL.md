@@ -10,9 +10,20 @@ This guide describes the **Unified Docker Strategy**, which is the most robust w
 ---
 
 ## Step 1: Verify Environment Variables
-Before deploying, strictly ensure you have these values ready:
+Before deploying, strictly ensure you have these values ready. Add them to the **Environment Variables** tab for the `api-server` component.
+
+### Required
 *   `DATABASE_URL`: Your full PostgreSQL connection string.
 *   `BETTER_AUTH_SECRET`: A random 32-char string.
+*   `BETTER_AUTH_URL`: `${APP_URL}` (or your full domain, e.g., `https://chi-and-rose-abcde.ondigitalocean.app`)
+*   `POLAR_ACCESS_TOKEN`: Your Polar API Token (or a placeholder `dummy` if testing).
+*   `POLAR_SUCCESS_URL`: `${APP_URL}/success` (or placeholder).
+*   `CORS_ORIGIN`: `${APP_URL}` (or `*` for initial testing).
+
+### Optional (But may be validated if not skipped)
+*   `GOOGLE_CLIENT_ID`, `APPLE_CLIENT_ID`, etc. (if using OAuth).
+
+> **Tip:** If you see "Readiness probe failed" initially, check the logs. It usually means these variables are missing.
 
 ## Step 2: Deploy using App Spec (Recommended)
 This is the "One-Click" method if the code is already on GitHub.
