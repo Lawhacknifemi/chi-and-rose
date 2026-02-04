@@ -289,7 +289,7 @@ app.listen(3000, async () => {
   // DB CONNECTION CHECK & FALLBACK
   // -------------------------------------------------------------------------
   // FALLBACK: Use provided credentials if env var is missing or invalid
-  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes("postgres://")) {
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith("postgres")) {
     console.warn("[DB Warning] DATABASE_URL is missing or invalid. Check your DigitalOcean Environment Variables.");
     // Security: Cannot hardcode credentials here (GitHub blocks push). 
     // Please set DATABASE_URL in DigitalOcean App Platform settings.
