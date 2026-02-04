@@ -13,6 +13,10 @@ RUN bun install --frozen-lockfile
 WORKDIR /app/apps/web
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Skip env validation during build (standard for T3 env)
+ENV SKIP_ENV_VALIDATION=1
+# Provide dummy value just in case validation isn't skipped
+ENV NEXT_PUBLIC_SERVER_URL="http://placeholder"
 RUN bun run build
 
 # 2. Build Server (TSDown / Bun)
