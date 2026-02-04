@@ -13,6 +13,12 @@ import cors from "cors";
 // import { eq } from "drizzle-orm"; // Removed
 import express from "express";
 
+// Debug Import
+console.log("[DEBUG] Server importing appRouter...", appRouter);
+if (!appRouter) {
+  console.error("[CRITICAL] appRouter is UNDEFINED! Check circular dependencies or export issues.");
+}
+
 const app = express();
 app.set("trust proxy", true); // Ensure express trusts the environment (adb/proxies)
 

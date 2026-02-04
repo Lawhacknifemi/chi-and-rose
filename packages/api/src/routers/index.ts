@@ -6,6 +6,8 @@ import * as subscriptionsRouter from "./subscriptions";
 import * as cmsRouter from "./cms";
 import * as usersRouter from "./users";
 
+console.log("[DEBUG] Initializing appRouter in routers/index.ts");
+
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
     return "OK";
