@@ -92,3 +92,4 @@ Add a second component to the SAME app.
 ## Troubleshooting
 - **Build Fails**: Check the "Build Logs". Ensure `bun.lock` is in the repo.
 - **Database Connection**: Ensure the DB allows public access or is in the same VPC/Project.
+ 
