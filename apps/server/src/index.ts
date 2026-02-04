@@ -70,22 +70,26 @@ app.use(
 
 // 1. Better-Auth Handler
 // Mount Better-Auth FIRST to ensure it handles its own body parsing and requests.
-// Support both /api/auth (Standard) and /auth (Stripped by DigitalOcean key)
+// Support stripped paths by rewriting /auth -> /api/auth
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/auth") || req.path.startsWith("/auth")) {
+  // DigitalOcean strips /api prefix from routes, so /api/auth comes in as /auth
+  // We rewrite it back to /api/auth so Better-Auth (which checks baseURL) is happy
+  if (req.path.startsWith("/auth")) {
+    req.url = "/api" + req.url;
+  }
+
+  if (req.path.startsWith("/api/auth")) {
     return authHandler(req, res);
   }
   next();
 });
 
 // 2. Global Body Parsing
-// Skip for Auth and RPC
 app.use((req, res, next) => {
-  const isAuth = req.path.startsWith("/api/auth") || req.path.startsWith("/auth");
-  // RPC check is tricky without prefix, but we can assume anything not auth/login might be RPC if we are strictly the API server
-  // For safety, we just allow body parsing generally unless it's strictly excluded
-  if (isAuth) {
+  // Skip JSON parsing for Auth (handled by Better-Auth) and RPC (handled manually if needed, or fine to parse)
+  // We just exclude Auth strictly.
+  if (req.path.startsWith("/api/auth")) {
     next();
   } else {
     express.json()(req, res, next);
@@ -94,8 +98,23 @@ app.use((req, res, next) => {
 
 // ... (skipping RPC Handler setup lines)
 
+// Create oRPC handler
+const rpcHandler = new RPCHandler({
+  router: appRouter,
+  createContext,
+  onError,
+});
+
+// Create OpenAPI handler
+const apiHandler = new OpenAPIHandler({
+  router: appRouter,
+  createContext,
+  onError,
+  converter: new ZodToJsonSchemaConverter(),
+  plugins: [new OpenAPIReferencePlugin()],
+});
+
 // Mount oRPC handlers
-// 1. Try standard /rpc prefix
 app.use("/rpc", async (req, res, next) => {
   const rpcResult = await rpcHandler.handle(req, res, {
     prefix: "/rpc",
@@ -105,11 +124,10 @@ app.use("/rpc", async (req, res, next) => {
   next();
 });
 
-// 2. Try Root (If DigitalOcean stripped /rpc)
+// Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
-  // We only attempt this if it hasn't been handled yet
   const rpcResult = await rpcHandler.handle(req, res, {
-    prefix: "", // No prefix, treat URL as /procedureName
+    prefix: "",
     context: await createContext({ req }),
   });
   if (rpcResult.matched) return;
