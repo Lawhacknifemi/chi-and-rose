@@ -5,6 +5,7 @@ export interface OFFProduct {
     category?: string;
     ingredientsRaw?: string;
     nutrition?: any;
+    imageUrl?: string;
     source: string;
 }
 
@@ -13,7 +14,14 @@ export class OpenFoodFactsClient {
 
     async getProduct(barcode: string): Promise<OFFProduct | null> {
         try {
-            const response = await fetch(`${this.baseUrl}/${barcode}.json`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const response = await fetch(`${this.baseUrl}/${barcode}.json`, {
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
             if (!response.ok) return null;
 
             const data = await response.json() as any;
@@ -27,10 +35,11 @@ export class OpenFoodFactsClient {
                 category: p.categories,
                 ingredientsRaw: p.ingredients_text,
                 nutrition: p.nutriscore_data || p.nutriments,
+                imageUrl: p.image_url || p.image_front_url || p.image_small_url,
                 source: "open_food_facts",
             };
         } catch (error) {
-            console.error("OFF API Error:", error);
+            console.error("OFF API Error (likely timeout):", error);
             return null;
         }
     }

@@ -20,6 +20,20 @@ async function seed() {
             explanation: "May mimic estrogen and disrupt hormonal balance.",
         },
         {
+            ingredientName: "methylparaben",
+            tags: ["endocrine_disruptor", "preservative"],
+            avoidFor: ["PCOS", "Endometriosis", "Fibroids"],
+            cautionFor: ["Acne"],
+            explanation: "May mimic estrogen and disrupt hormonal balance.",
+        },
+        {
+            ingredientName: "propylparaben",
+            tags: ["endocrine_disruptor", "preservative"],
+            avoidFor: ["PCOS", "Endometriosis", "Fibroids"],
+            cautionFor: ["Acne"],
+            explanation: "May mimic estrogen and disrupt hormonal balance.",
+        },
+        {
             ingredientName: "sodium laureth sulfate",
             tags: ["surfactant", "irritant"],
             avoidFor: [],

@@ -3,6 +3,8 @@ import { protectedProcedure, publicProcedure } from "../index";
 import * as healthRouter from "./health";
 import * as scannerRouter from "./scanner";
 import * as subscriptionsRouter from "./subscriptions";
+import * as cmsRouter from "./cms";
+import * as usersRouter from "./users";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -25,10 +27,33 @@ export const appRouter = {
   health: {
     getProfile: healthRouter.getProfile,
     updateProfile: healthRouter.updateProfile,
+    dailyInsight: healthRouter.dailyInsight,
+    getFeed: healthRouter.getFeed,
   },
   scanner: {
     scanBarcode: scannerRouter.scanBarcode,
     getIngredientInsight: scannerRouter.getIngredientInsight,
+    getRecentScans: scannerRouter.getRecentScans,
+    analyzeIngredients: scannerRouter.analyzeIngredients,
+    createProduct: scannerRouter.createProduct,
+  },
+  cms: {
+    listArticles: cmsRouter.listArticles,
+    getArticle: cmsRouter.getArticle,
+    createArticle: cmsRouter.createArticle,
+    updateArticle: cmsRouter.updateArticle,
+    deleteArticle: cmsRouter.deleteArticle,
+    listTips: cmsRouter.listTips,
+    createTip: cmsRouter.createTip,
+    updateTip: cmsRouter.updateTip,
+    deleteTip: cmsRouter.deleteTip,
+    getTip: cmsRouter.getTip,
+  },
+  users: {
+    listUsers: usersRouter.listUsers,
+    toggleSuspension: usersRouter.toggleSuspension,
+    updateUserPlan: usersRouter.updateUserPlan,
+    deleteUser: usersRouter.deleteUser,
   },
 };
 export type AppRouter = typeof appRouter;

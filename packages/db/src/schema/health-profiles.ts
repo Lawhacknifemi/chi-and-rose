@@ -12,6 +12,7 @@ export const userProfiles = pgTable("user_profile", {
     goals: text("goals").array().notNull().default([]),
     dietaryPreferences: text("dietary_preferences").array().notNull().default([]),
     sensitivities: text("sensitivities").array().notNull().default([]),
+    dateOfBirth: timestamp("date_of_birth"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
         .defaultNow()

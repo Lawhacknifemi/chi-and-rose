@@ -23,12 +23,20 @@ export const env = createEnv({
     APPLE_CLIENT_ID: z.string().optional(),
     APPLE_CLIENT_SECRET: z.string().optional(),
 
+    // AI
+    GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
+
     // Mobile Purchase Verification (Separate from auth)
     GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL: z.string().email().optional(),
     GOOGLE_PLAY_PRIVATE_KEY: z.string().optional(),
     GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
     APPLE_APP_SHARED_SECRET: z.string().optional(),
     APPLE_BUNDLE_ID: z.string().optional(),
+
+    // Cloudinary
+    CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    CLOUDINARY_API_KEY: z.string().optional(),
+    CLOUDINARY_API_SECRET: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -10,19 +10,14 @@ import { toast } from "sonner";
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      toast.error(`Error: ${error.message}`, {
-        action: {
-          label: "retry",
-          onClick: query.invalidate,
-        },
-      });
+      toast.error(`Error: ${error.message}`);
     },
   }),
 });
 
 export const link = new RPCLink({
   url: `${env.NEXT_PUBLIC_SERVER_URL}/rpc`,
-  fetch(url, options) {
+  async fetch(url, options) {
     return fetch(url, {
       ...options,
       credentials: "include",

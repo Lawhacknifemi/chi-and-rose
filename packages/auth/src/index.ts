@@ -4,25 +4,47 @@ import { env } from "@chi-and-rose/env/server";
 import { polar, checkout, portal } from "@polar-sh/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { bearer } from "better-auth/plugins";
+import { bearer, emailOTP } from "better-auth/plugins";
 
 import { polarClient } from "./lib/payments";
+export { sendEmail } from "./lib/email";
 import { sendEmail } from "./lib/email";
 
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL.endsWith("/api/auth") ? env.BETTER_AUTH_URL : `${env.BETTER_AUTH_URL}/api/auth`,
+  logging: {
+    level: "debug",
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        defaultValue: "user",
+      },
+    },
+  },
+  baseURL: `${env.BETTER_AUTH_URL}/api/auth`,
   // basePath is NOT needed here - Express mounting path IS the basePath
   database: drizzleAdapter(db, {
     provider: "pg",
 
     schema: schema,
   }),
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins: [
+    env.CORS_ORIGIN,
+    "chiandrose://",
+    "chiandrose://app",
+    "http://10.0.2.2:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3001",
+    "http://localhost:3001"
+  ],
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true, // Enable verification so OTP is required
     async sendResetPassword(data, request) {
       await sendEmail({
-        to: data.user.email,
+        to: data.user.email, // Fixed type access
         subject: "Reset your password",
         text: `Click the link to reset your password: ${data.url}`,
       });
@@ -43,16 +65,32 @@ export const auth = betterAuth({
   // This is SEPARATE from Google Play/App Store purchase verification
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "lax", // Changed from "none" for better localhost support
-      secure: env.NODE_ENV === "production", // Only use secure in production (HTTPS)
+      sameSite: "lax",
+      secure: false, // Force insecure for localhost debugging
       httpOnly: true,
     },
   },
   plugins: [
     bearer(),
+    emailOTP({
+      otpLength: 4, // Set to 4 digits as per user requirement
+      async sendVerificationOTP({ email, otp, type }) {
+        console.log("👉 [DEBUG] sendVerificationOTP Fired!", { email, otp, type });
+        try {
+          await sendEmail({
+            to: email,
+            subject: "Verify your email",
+            text: `Your verification code is: ${otp}`,
+          });
+          console.log("👉 [DEBUG] sendEmail completed");
+        } catch (err) {
+          console.error("❌ [DEBUG] sendEmail failed:", err);
+        }
+      },
+    }),
     polar({
       client: polarClient,
-      createCustomerOnSignUp: true,
+      createCustomerOnSignUp: false, // Disabled to prevent blocking sign-up errors
       enableCustomerPortal: true,
       use: env.POLAR_PRODUCT_ID
         ? [

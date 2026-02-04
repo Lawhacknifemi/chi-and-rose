@@ -20,6 +20,22 @@ async function pushSchema() {
     `);
     console.log("✓ Created user table");
 
+    // Backfill role column if specific column is missing (simple idempotent check)
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='role') THEN 
+          ALTER TABLE "user" ADD COLUMN "role" TEXT DEFAULT 'user' NOT NULL; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='is_suspended') THEN 
+          ALTER TABLE "user" ADD COLUMN "is_suspended" BOOLEAN DEFAULT false NOT NULL; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='plan') THEN 
+          ALTER TABLE "user" ADD COLUMN "plan" TEXT DEFAULT 'free' NOT NULL; 
+        END IF; 
+      END $$;
+    `);
+
     // Create session table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "session" (
@@ -134,6 +150,7 @@ async function pushSchema() {
         "goals" TEXT[] NOT NULL DEFAULT '{}',
         "dietary_preferences" TEXT[] NOT NULL DEFAULT '{}',
         "sensitivities" TEXT[] NOT NULL DEFAULT '{}',
+        "date_of_birth" TIMESTAMP,
         "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
         "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
       )
@@ -189,6 +206,37 @@ async function pushSchema() {
       CREATE INDEX IF NOT EXISTS "ingredient_rule_name_idx" ON "ingredient_rule"("ingredient_name");
     `);
     console.log("✓ Created new table indexes");
+
+    // Create articles table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "articles" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "title" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "summary" TEXT,
+        "image_url" TEXT,
+        "category" TEXT NOT NULL,
+        "is_published" BOOLEAN DEFAULT false NOT NULL,
+        "published_at" TIMESTAMP,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created articles table");
+
+    // Create daily_tips table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "daily_tips" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "phase" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "actionable_tip" TEXT,
+        "category" TEXT,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created daily_tips table");
 
     console.log("\n✅ All tables created successfully!");
 

@@ -12,9 +12,15 @@ export default async function DashboardPage() {
       throw: true,
     },
   });
+  console.log("Dashboard Session User:", session?.user);
 
   if (!session?.user) {
     redirect("/login");
+  }
+
+  // @ts-expect-error role is dynamic in DB
+  if (session.user.role === "admin") {
+    redirect("/admin");
   }
 
   const { data: customerState } = await authClient.customer.state({

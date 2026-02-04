@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import { db } from "@chi-and-rose/db";
+import { db, user } from "@chi-and-rose/db";
 import { mobileSubscription } from "@chi-and-rose/db/schema/mobile-subscriptions";
 import { eq, and } from "drizzle-orm";
 import { protectedProcedure, publicProcedure } from "../index";
@@ -281,16 +281,21 @@ export const hasAccess = protectedProcedure
       )
       .limit(1);
 
-    const hasAccess = subscription.length > 0;
+    const [userRecord] = await db
+      .select({ plan: user.plan })
+      .from(user)
+      .where(eq(user.id, userId));
+
+    const hasAccess = subscription.length > 0 || userRecord?.plan === "pro";
 
     return {
       hasAccess,
       subscription: hasAccess
         ? {
-            id: subscription[0].id,
-            platform: subscription[0].platform,
-            expiresAt: subscription[0].expiresAt?.toISOString(),
-          }
+          id: subscription[0].id,
+          platform: subscription[0].platform,
+          expiresAt: subscription[0].expiresAt?.toISOString(),
+        }
         : null,
     };
   });

@@ -9,6 +9,8 @@ export const productsCache = pgTable("products_cache", {
     ingredientsRaw: text("ingredients_raw"),
     ingredientsParsed: jsonb("ingredients_parsed").$type<string[]>(),
     nutrition: jsonb("nutrition"),
+    imageUrl: text("image_url"),
+    lastAnalysis: jsonb("last_analysis").$type<any>(), // Stores full analysis result
     lastFetched: timestamp("last_fetched").defaultNow().notNull(),
 });
 

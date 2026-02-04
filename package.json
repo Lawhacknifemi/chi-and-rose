@@ -35,7 +35,10 @@
   },
   "dependencies": {
     "@chi-and-rose/env": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "cloudinary": "^2.9.0",
     "dotenv": "catalog:",
+    "pg": "^8.18.0",
     "zod": "catalog:"
   },
   "devDependencies": {

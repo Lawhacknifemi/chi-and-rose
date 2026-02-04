@@ -14,6 +14,7 @@
     "@chi-and-rose/auth": "workspace:*",
     "@chi-and-rose/db": "workspace:*",
     "@chi-and-rose/env": "workspace:*",
+    "@google/generative-ai": "^0.24.1",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",

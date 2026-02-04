@@ -28,9 +28,11 @@ export async function createContext(opts: CreateContextOptions) {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(opts.req.headers),
   });
+  console.log(`[Context] Session found: ${!!session}`, session?.user?.id);
 
   return {
     session,
+    req: opts.req,
   };
 }
 

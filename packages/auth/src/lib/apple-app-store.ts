@@ -13,32 +13,25 @@ export interface AppleReceiptData {
   password?: string; // App-specific shared secret (for subscriptions)
 }
 
+export interface AppleTransaction {
+  transactionId: string;
+  originalTransactionId: string;
+  productId: string;
+  purchaseDate: number; // milliseconds since epoch
+  expiresDate?: number; // For subscriptions
+  cancellationDate?: number;
+  isTrialPeriod?: boolean;
+  isInIntroOfferPeriod?: boolean;
+}
+
 export interface AppleVerificationResult {
   valid: boolean;
   receipt?: {
     receiptType: string; // "Production" | "ProductionSandbox"
     bundleId: string;
     applicationVersion: string;
-    inApp?: Array<{
-      transactionId: string;
-      originalTransactionId: string;
-      productId: string;
-      purchaseDate: number; // milliseconds since epoch
-      expiresDate?: number; // For subscriptions
-      cancellationDate?: number;
-      isTrialPeriod?: boolean;
-      isInIntroOfferPeriod?: boolean;
-    }>;
-    latestReceiptInfo?: Array<{
-      transactionId: string;
-      originalTransactionId: string;
-      productId: string;
-      purchaseDate: number;
-      expiresDate?: number;
-      cancellationDate?: number;
-      isTrialPeriod?: boolean;
-      isInIntroOfferPeriod?: boolean;
-    }>;
+    inApp?: Array<AppleTransaction>;
+    latestReceiptInfo?: Array<AppleTransaction>;
   };
   error?: string;
 }
@@ -163,7 +156,7 @@ function getAppleStatusMessage(status: number): string {
 export function findActiveSubscription(
   receipt: AppleVerificationResult["receipt"],
   productId: string
-): AppleVerificationResult["receipt"]["latestReceiptInfo"][0] | null {
+): AppleTransaction | null {
   if (!receipt?.latestReceiptInfo) {
     return null;
   }
@@ -174,13 +167,13 @@ export function findActiveSubscription(
     .filter((item) => {
       // Must match product ID
       if (item.productId !== productId) return false;
-      
+
       // Must not be cancelled
       if (item.cancellationDate) return false;
-      
+
       // Must not be expired (if it has expiry date)
       if (item.expiresDate && item.expiresDate < now) return false;
-      
+
       return true;
     })
     .sort((a, b) => (b.expiresDate || 0) - (a.expiresDate || 0)); // Most recent first
