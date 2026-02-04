@@ -11,7 +11,7 @@ console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 // Explicitly define router using builder to ensure symbols are attached
 export const appRouter = publicProcedure.router({
   healthCheck: publicProcedure.handler(() => {
-    return "OK";
+    return { status: "OK" };
   }),
   privateData: protectedProcedure.handler(({ context }) => {
     return {

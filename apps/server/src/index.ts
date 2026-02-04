@@ -157,7 +157,7 @@ app.use("/rpc", async (req, res, next) => {
 // We return { data: "OK" } to mimic standard RPC response envelopes.
 // -------------------------------------------------------------------------
 app.all("/healthCheck", (req, res) => {
-  res.status(200).json({ data: "OK" });
+  res.status(200).json({ data: { status: "OK" } });
 });
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
