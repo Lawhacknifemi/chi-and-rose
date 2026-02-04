@@ -12,7 +12,10 @@ services:
   instance_count: 1
   instance_size_slug: basic-xxs
   routes:
-  - path: /
+  - path: /api
+  - path: /rpc
+  - path: /login
+  - path: /debug-env
   envs:
   - key: NODE_ENV
     value: production
@@ -43,7 +46,7 @@ services:
   - key: NODE_ENV
     value: production
   - key: NEXT_PUBLIC_SERVER_URL
-    value: ${api-server.APP_URL}
+    value: ${APP_URL}
   - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
     value: dawxj7cns
   - key: NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
