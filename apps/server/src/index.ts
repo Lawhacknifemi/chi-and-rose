@@ -164,9 +164,10 @@ app.use("/api-reference", async (req, res, next) => {
   next();
 });
 
-app.get("/", (_req, res) => {
-  res.status(200).send("OK");
-});
+// Root route removed to avoid conflict with Web Dashboard in DigitalOcean
+// app.get("/", (_req, res) => {
+//   res.status(200).send("OK");
+// });
 
 // Step 2: Better-Auth redirects here after login.
 // Browser has the session cookie. Server validates it, gets the Token, and redirects to Deep Link.
