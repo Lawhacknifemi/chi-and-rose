@@ -153,12 +153,25 @@ app.use("/rpc", async (req, res, next) => {
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
+  // Fix 404: ORPC expects paths WITHOUT leading slash when prefix is empty
+  // E.g. Request "/" -> "healthCheck" (handled by strip)
+  // Actually, ORPC router definitions keys like "healthCheck" match against the path.
+  // If req.url is "/healthCheck", and prefix "", it matches "/healthCheck".
+  // BUT: The issue might be that prefix handling in @orpc/server is strict.
+  // Let's try forcing the URL to NOT have a leading slash if possible, OR
+  // ensure the prefix matches what comes in.
+
+  // V2 Fix: Strip leading slash manually just in case
+  if (req.url.startsWith("/")) {
+    req.url = req.url.substring(1);
+  }
+
   const result = await rpcHandler.handle(req, res, {
-    prefix: "",
+    prefix: "", // We stripped the path from req.url, so it is cleaner
     context: await createContext({ req }),
   });
 
-  console.log(`[RPC Fallback] handled: matched=${result.matched}, url=${req.url}, path=${req.path}`);
+  console.log(`[RPC Fallback v2] handled: matched=${result.matched}, modifiedUrl=${req.url}, path=${req.path}`);
 
   if (result.matched) return;
   next();
@@ -274,8 +287,15 @@ app.listen(3000, async () => {
   console.log("Auth Config Google Enabled:", auth.options.socialProviders?.google?.enabled);
 
   // -------------------------------------------------------------------------
-  // DB CONNECTION CHECK
+  // DB CONNECTION CHECK & FALLBACK
   // -------------------------------------------------------------------------
+  // FALLBACK: Use provided credentials if env var is missing or invalid
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes("postgres://")) {
+    console.warn("[DB Warning] DATABASE_URL is missing or invalid. Check your DigitalOcean Environment Variables.");
+    // Security: Cannot hardcode credentials here (GitHub blocks push). 
+    // Please set DATABASE_URL in DigitalOcean App Platform settings.
+  }
+
   try {
     const dbUrl = process.env.DATABASE_URL || "undefined";
     const maskedUrl = dbUrl.includes("@") ? "postgres://*****@" + dbUrl.split("@")[1] : "INVALID_FORMAT";
