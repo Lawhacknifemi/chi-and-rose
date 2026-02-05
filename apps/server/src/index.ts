@@ -157,12 +157,23 @@ const apiHandler = new OpenAPIHandler({
 });
 */
 
-// Mount oRPC handlers
 app.use("/rpc", async (req, res, next) => {
-  // Manual Fix: Ensure req.url does not have leading slash so 'orpc' matches correctly with prefix=""
+  // ROBUST STRIPPING:
+  // Express 'app.use("/rpc")' usually strips the prefix, resulting in '/scanner/scanBarcode'.
+  // However, sometimes with proxies/rewrites, it might persist.
+
+  // 1. Remove leading slash
   if (req.url.startsWith("/")) {
     req.url = req.url.slice(1);
   }
+
+  // 2. Remove 'rpc/' prefix if it somehow remains
+  if (req.url.startsWith("rpc/")) {
+    req.url = req.url.replace(/^rpc\//, "");
+  }
+
+  // Debug Log
+  // console.log(`[RPC Handler] Processing: ${req.url}`);
 
   const rpcResult = await rpcHandler.handle(req, res, {
     prefix: "",
