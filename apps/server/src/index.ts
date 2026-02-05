@@ -158,21 +158,26 @@ const apiHandler = new OpenAPIHandler({
 */
 
 app.use("/rpc", async (req, res, next) => {
-  // ROBUST STRIPPING:
-  // Express 'app.use("/rpc")' usually strips the prefix, resulting in '/scanner/scanBarcode'.
-  // However, sometimes with proxies/rewrites, it might persist.
+  const oldUrl = req.url;
 
-  // 1. Remove leading slash
-  if (req.url.startsWith("/")) {
-    req.url = req.url.slice(1);
+  // ROBUST PATH FIXING:
+  // 1. Strip 'rpc' prefix if it exists (e.g. /rpc/scanner -> /scanner)
+  if (req.url.startsWith("/rpc/")) {
+    req.url = req.url.replace(/^\/rpc/, "");
+  } else if (req.url.startsWith("rpc/")) {
+    req.url = "/" + req.url.replace(/^rpc\//, "");
   }
 
-  // 2. Remove 'rpc/' prefix if it somehow remains
-  if (req.url.startsWith("rpc/")) {
-    req.url = req.url.replace(/^rpc\//, "");
+  // 2. ENSURE Leading Slash (Fixes 'scanner/scanBarcode' -> '/scanner/scanBarcode')
+  if (!req.url.startsWith("/")) {
+    req.url = "/" + req.url;
   }
+
+  // 3. Prevent double slashes just in case
+  req.url = req.url.replace(/^\/+/, "/");
 
   // Debug Log
+  console.log(`[RPC Fix] Adjusted URL: '${oldUrl}' -> '${req.url}'`);
   console.log(`[RPC Handler] Processing: url='${req.url}' originalUrl='${req.originalUrl}'`);
 
   const rpcResult = await rpcHandler.handle(req, res, {
