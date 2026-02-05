@@ -16,7 +16,7 @@ export const queryClient = new QueryClient({
 });
 
 export const link = new RPCLink({
-  url: `${env.NEXT_PUBLIC_SERVER_URL}`,
+  url: `${env.NEXT_PUBLIC_SERVER_URL}/rpc`,
   async fetch(url, options) {
     return fetch(url, {
       ...options,

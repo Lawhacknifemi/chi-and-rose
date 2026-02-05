@@ -19,163 +19,170 @@ export const scanBarcode = publicProcedure
         suppressError: z.boolean().optional().default(false),
     }))
     .handler(async ({ input, context }) => {
-        const { barcode, suppressError } = input;
+        try {
+            const { barcode, suppressError } = input;
 
-        console.log("[Scanner] FORCED Input:", barcode);
+            console.log("[Scanner] FORCED Input:", barcode);
 
 
-        // 1. Check Cache
-        let product = await db.query.productsCache.findFirst({
-            where: eq(productsCache.barcode, barcode),
-        });
+            // 1. Check Cache
+            let product = await db.query.productsCache.findFirst({
+                where: eq(productsCache.barcode, barcode),
+            });
 
-        // 1b. Cache Repair: If product exists but missing image, try to re-fetch to see if we can get one now.
-        // This fixes the issue where old scans don't show images.
-        if (product && !product.imageUrl) {
-            console.log(`[Scanner] Product ${barcode} in cache but missing image. Re-fetching to repair...`);
-            // Force re-fetch logic by clearing 'product' variable temporarily or just running the fetch block?
-            // Safer to run a dedicated repair block or just treat it as "not found" to force re-fetch flow.
-            // Let's treat as "not found" for this logic, but be careful not to overwrite good data with bad data.
-            // Actually, let's just nullify 'product' to force the "Fetch from External" block to run.
-            // If external fails, we still have the old DB record (we just won't update it).
-            // But we need to make sure we don't THROW if external fails, instead just keep the old record.
-            // Complexity: High.
-            // Alternative: Just run the external fetch logic below.
-            product = undefined;
-        }
-
-        // 2. Fetch from External if not in cache (or if we forced re-fetch)
-        if (!product) {
-            console.log(`[Scanner] Product ${barcode} not in cache (or repairing). Fetching from external...`);
-
-            // Try Food first, then Beauty
-            let externalProduct = await offClient.getProduct(barcode);
-            console.log(`[Scanner] OFF Result: ${externalProduct ? "Found" : "Not Found"}`);
-
-            if (!externalProduct) {
-                externalProduct = await obfClient.getProduct(barcode);
-                console.log(`[Scanner] OBF Result: ${externalProduct ? "Found" : "Not Found"}`);
+            // 1b. Cache Repair: If product exists but missing image, try to re-fetch to see if we can get one now.
+            // This fixes the issue where old scans don't show images.
+            if (product && !product.imageUrl) {
+                console.log(`[Scanner] Product ${barcode} in cache but missing image. Re-fetching to repair...`);
+                // Force re-fetch logic by clearing 'product' variable temporarily or just running the fetch block?
+                // Safer to run a dedicated repair block or just treat it as "not found" to force re-fetch flow.
+                // Let's treat as "not found" for this logic, but be careful not to overwrite good data with bad data.
+                // Actually, let's just nullify 'product' to force the "Fetch from External" block to run.
+                // If external fails, we still have the old DB record (we just won't update it).
+                // But we need to make sure we don't THROW if external fails, instead just keep the old record.
+                // Complexity: High.
+                // Alternative: Just run the external fetch logic below.
+                product = undefined;
             }
 
-            if (!externalProduct) {
-                externalProduct = await upcClient.getProduct(barcode);
-                console.log(`[Scanner] UPC Result: ${externalProduct ? "Found" : "Not Found"}`);
-            }
+            // 2. Fetch from External if not in cache (or if we forced re-fetch)
+            if (!product) {
+                console.log(`[Scanner] Product ${barcode} not in cache (or repairing). Fetching from external...`);
 
-            // ... (Name Search Logic - Identical to before, omitting for brevity in diff if unchanged) ... 
-            // 2b. Enhanced Ingredient Lookup via Name (if found but ingredients missing)
-            if (externalProduct && !externalProduct.ingredientsRaw && externalProduct.name) {
-                console.log(`[Scanner] Product found (${externalProduct.source}) but missing ingredients. Attempting Name Search...`);
-                let query = externalProduct.name.split(" - ")[0];
-                query = query.replace(/\d+(\.\d+)?\s?(ml|fl\s?oz|oz|g|kg)/gi, "").trim();
-                const words = query.split(" ");
-                if (words.length > 5) {
-                    query = words.slice(0, 5).join(" ");
-                }
-                const searchResult = await obfClient.searchProduct(query);
-                if (searchResult && searchResult.ingredientsRaw) {
-                    console.log(`[Scanner] Name Search Success: Found ingredients for '${query}'`);
-                    externalProduct.ingredientsRaw = searchResult.ingredientsRaw;
-                }
-            }
+                // Try Food first, then Beauty
+                let externalProduct = await offClient.getProduct(barcode);
+                console.log(`[Scanner] OFF Result: ${externalProduct ? "Found" : "Not Found"}`);
 
-            if (externalProduct) {
-                // CLOUDINARY UPLOAD HERE
-                if (externalProduct.imageUrl) {
-                    externalProduct.imageUrl = await imageService.uploadFromUrl(externalProduct.imageUrl, barcode);
+                if (!externalProduct) {
+                    externalProduct = await obfClient.getProduct(barcode);
+                    console.log(`[Scanner] OBF Result: ${externalProduct ? "Found" : "Not Found"}`);
                 }
 
-                const [newProduct] = await db
-                    .insert(productsCache)
-                    .values({
-                        barcode,
-                        source: externalProduct.source,
-                        name: externalProduct.name,
-                        brand: externalProduct.brand,
-                        category: externalProduct.category,
-                        ingredientsRaw: externalProduct.ingredientsRaw,
-                        nutrition: externalProduct.nutrition,
-                        imageUrl: externalProduct.imageUrl,
-                    })
-                    .onConflictDoUpdate({
-                        target: productsCache.barcode,
-                        set: {
+                if (!externalProduct) {
+                    externalProduct = await upcClient.getProduct(barcode);
+                    console.log(`[Scanner] UPC Result: ${externalProduct ? "Found" : "Not Found"}`);
+                }
+
+                // ... (Name Search Logic - Identical to before, omitting for brevity in diff if unchanged) ... 
+                // 2b. Enhanced Ingredient Lookup via Name (if found but ingredients missing)
+                if (externalProduct && !externalProduct.ingredientsRaw && externalProduct.name) {
+                    console.log(`[Scanner] Product found (${externalProduct.source}) but missing ingredients. Attempting Name Search...`);
+                    let query = externalProduct.name.split(" - ")[0];
+                    query = query.replace(/\d+(\.\d+)?\s?(ml|fl\s?oz|oz|g|kg)/gi, "").trim();
+                    const words = query.split(" ");
+                    if (words.length > 5) {
+                        query = words.slice(0, 5).join(" ");
+                    }
+                    const searchResult = await obfClient.searchProduct(query);
+                    if (searchResult && searchResult.ingredientsRaw) {
+                        console.log(`[Scanner] Name Search Success: Found ingredients for '${query}'`);
+                        externalProduct.ingredientsRaw = searchResult.ingredientsRaw;
+                    }
+                }
+
+                if (externalProduct) {
+                    // CLOUDINARY UPLOAD HERE
+                    if (externalProduct.imageUrl) {
+                        externalProduct.imageUrl = await imageService.uploadFromUrl(externalProduct.imageUrl, barcode);
+                    }
+
+                    const [newProduct] = await db
+                        .insert(productsCache)
+                        .values({
+                            barcode,
+                            source: externalProduct.source,
                             name: externalProduct.name,
                             brand: externalProduct.brand,
                             category: externalProduct.category,
                             ingredientsRaw: externalProduct.ingredientsRaw,
                             nutrition: externalProduct.nutrition,
                             imageUrl: externalProduct.imageUrl,
-                            lastFetched: new Date(),
-                        }
-                    })
-                    .returning();
-                product = newProduct;
+                        })
+                        .onConflictDoUpdate({
+                            target: productsCache.barcode,
+                            set: {
+                                name: externalProduct.name,
+                                brand: externalProduct.brand,
+                                category: externalProduct.category,
+                                ingredientsRaw: externalProduct.ingredientsRaw,
+                                nutrition: externalProduct.nutrition,
+                                imageUrl: externalProduct.imageUrl,
+                                lastFetched: new Date(),
+                            }
+                        })
+                        .returning();
+                    product = newProduct;
+                } else {
+                    // If we were repairing (product was originally found but undefined now), we should probably revert to DB fetch.
+                    // But simply checking DB again satisfies this.
+                    product = await db.query.productsCache.findFirst({
+                        where: eq(productsCache.barcode, barcode),
+                    });
+                }
+            }
+
+            if (!product) {
+                if (suppressError) {
+                    return { found: false, barcode } as const;
+                }
+                throw new Error("Product not found");
+            }
+
+            // 3. Record Scan
+            await db.insert(scans).values({
+                userId: context.session.user.id,
+                barcode,
+            });
+
+            // 4. Normalize & Analyze
+            let analysis;
+            if (product.ingredientsRaw) {
+                const normalizedIngredients = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
+                analysis = await EvaluationEngine.analyze(
+                    context.session.user.id,
+                    normalizedIngredients,
+                    product.name || "Unknown Product"
+                );
+
+                // SAVE UPDATE to Cache (Persist the Alternatives!)
+                try {
+                    console.log(`[scanBarcode] Persisting analysis for ${barcode}...`);
+                    await db.update(productsCache)
+                        .set({ lastAnalysis: analysis })
+                        .where(eq(productsCache.barcode, barcode));
+                    console.log(`[scanBarcode] Persistence SUCCESS.`);
+                } catch (err) {
+                    console.error(`[scanBarcode] Persistence FAILED:`, err);
+                }
             } else {
-                // If we were repairing (product was originally found but undefined now), we should probably revert to DB fetch.
-                // But simply checking DB again satisfies this.
-                product = await db.query.productsCache.findFirst({
-                    where: eq(productsCache.barcode, barcode),
-                });
+                // Missing ingredients fallback
+                analysis = {
+                    overallSafetyScore: 0,
+                    safetyLevel: "Caution" as const,
+                    summary: "Ingredients list not available. Please verify product details or add ingredients manually.",
+                    concerns: [],
+                    positives: [],
+                    alternatives: [],
+                };
             }
+
+            return {
+                found: true,
+                product: {
+                    name: product.name,
+                    brand: product.brand,
+                    category: product.category,
+                    ingredients: product.ingredientsRaw,
+                    imageUrl: product.imageUrl,
+                },
+                analysis,
+            } as const;
+        } catch (error: any) {
+            console.error("[Scanner] ERROR:", error);
+            console.error("[Scanner] ERROR Stack:", error.stack);
+            console.error("[Scanner] ERROR Details:", JSON.stringify(error, null, 2));
+            throw error;
         }
-
-        if (!product) {
-            if (suppressError) {
-                return { found: false, barcode } as const;
-            }
-            throw new Error("Product not found");
-        }
-
-        // 3. Record Scan
-        await db.insert(scans).values({
-            userId: context.session.user.id,
-            barcode,
-        });
-
-        // 4. Normalize & Analyze
-        let analysis;
-        if (product.ingredientsRaw) {
-            const normalizedIngredients = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
-            analysis = await EvaluationEngine.analyze(
-                context.session.user.id,
-                normalizedIngredients,
-                product.name || "Unknown Product"
-            );
-
-            // SAVE UPDATE to Cache (Persist the Alternatives!)
-            try {
-                console.log(`[scanBarcode] Persisting analysis for ${barcode}...`);
-                await db.update(productsCache)
-                    .set({ lastAnalysis: analysis })
-                    .where(eq(productsCache.barcode, barcode));
-                console.log(`[scanBarcode] Persistence SUCCESS.`);
-            } catch (err) {
-                console.error(`[scanBarcode] Persistence FAILED:`, err);
-            }
-        } else {
-            // Missing ingredients fallback
-            analysis = {
-                overallSafetyScore: 0,
-                safetyLevel: "Caution" as const,
-                summary: "Ingredients list not available. Please verify product details or add ingredients manually.",
-                concerns: [],
-                positives: [],
-                alternatives: [],
-            };
-        }
-
-        return {
-            found: true,
-            product: {
-                name: product.name,
-                brand: product.brand,
-                category: product.category,
-                ingredients: product.ingredientsRaw,
-                imageUrl: product.imageUrl,
-            },
-            analysis,
-        } as const;
     });
 
 export const getIngredientInsight = protectedProcedure

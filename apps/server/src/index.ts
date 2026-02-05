@@ -15,7 +15,7 @@ import express from "express";
 import { handleRPC } from "./utils/custom-rpc";
 
 // Debug Import
-console.log("[DEBUG] Server importing appRouter...", appRouter);
+console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 if (!appRouter) {
   console.error("[CRITICAL] appRouter is UNDEFINED! Check circular dependencies or export issues.");
 }
@@ -127,18 +127,8 @@ app.use("/", async (req, res, next) => {
     return next();
   }
 
-  // Transform path for nested routes
-  const pathParts = req.path.split('/').filter(Boolean);
-  if (pathParts.length > 1) {
-    req.url = '/' + pathParts.join('.');
-  }
-
-  const rpcResult = await rpcHandler.handle(req, res, {
-    prefix: "",
-    context: await createContext({ req }),
-  });
-  if (rpcResult.matched) return;
-  next();
+  console.log(`[Root RPC Handler] Handling: ${req.path}`);
+  return handleRPC(req, res);
 });
 
 // Step 2: Better-Auth redirects here after login.
