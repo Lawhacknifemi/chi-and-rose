@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from "@chi-and-rose/env/server";
+import { OpenFoodFactsClient } from "../lib/external/off-client";
+import { OpenBeautyFactsClient } from "../lib/external/obf-client";
 
 export interface AIAnalysisResult {
     overallSafetyScore: number;
@@ -38,6 +40,8 @@ export interface AIDailyInsight {
 export class AIService {
     private genAI: GoogleGenerativeAI | null = null;
     private model: any = null;
+    private offClient = new OpenFoodFactsClient();
+    private obfClient = new OpenBeautyFactsClient();
 
     constructor() {
         if (!env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -48,6 +52,25 @@ export class AIService {
         // Validated by user and debug script
         this.model = this.genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
         console.log("AI Service initialized with key: " + env.GOOGLE_GENERATIVE_AI_API_KEY.substring(0, 4) + "...");
+    }
+
+    private async findProductImage(brand: string, name: string): Promise<string | null> {
+        const queries = [
+            `${brand} ${name}`,
+            `${brand} ${name.split(" ")[0]}`,
+            brand
+        ];
+
+        for (const q of queries) {
+            // Try Food DB
+            let res = await this.offClient.searchProduct(q);
+            if (res?.imageUrl) return res.imageUrl;
+
+            // Try Beauty DB
+            res = await this.obfClient.searchProduct(q);
+            if (res?.imageUrl) return res.imageUrl;
+        }
+        return null;
     }
 
     async analyzeIngredients(ingredients: string[], userProfileContext: string): Promise<AIAnalysisResult> {
@@ -111,6 +134,8 @@ export class AIService {
         }
     }
 
+
+
     async suggestAlternatives(productName: string, avoidedIngredients: string[]): Promise<AIAlternative[]> {
         if (!this.model) return [];
 
@@ -136,18 +161,26 @@ export class AIService {
             const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
             const rawAlternatives = JSON.parse(jsonStr) as any[];
 
-            // Post-processing to add metadata
-            return rawAlternatives.map((alt: any) => {
+            // Post-processing to add metadata & images
+            const enrichedAlternatives = await Promise.all(rawAlternatives.map(async (alt: any) => {
                 const query = encodeURIComponent(`${alt.brand} ${alt.productName}`);
+                let imageUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(alt.productName.substring(0, 20))}`;
+
+                const realImage = await this.findProductImage(alt.brand || "", alt.productName);
+                if (realImage) {
+                    imageUrl = realImage;
+                }
+
                 return {
                     productName: alt.productName,
                     brand: alt.brand || "Unknown Brand",
                     reason: alt.reason,
                     buyLink: `https://www.google.com/search?tbm=shop&q=${query}`,
-                    // Using a more professional placeholder service or UI to handle image generation
-                    imageUrl: `https://placehold.co/400x400?text=${encodeURIComponent(alt.productName.substring(0, 20))}`,
+                    imageUrl: imageUrl,
                 };
-            });
+            }));
+
+            return enrichedAlternatives;
         } catch (error) {
             console.error("AI Alternatives Failed:", error);
             return [];
@@ -189,6 +222,75 @@ export class AIService {
                 message: "Small steps lead to big changes.",
                 actionableTip: "Drink water and stay mindful of what you use."
             };
+        }
+    }
+
+    async getRecommendations(
+        scannedProducts: Array<{ name: string; brand: string; category?: string }>,
+        userProfileContext: string
+    ): Promise<any[]> {
+        if (!this.model) return [];
+        if (scannedProducts.length === 0) return [];
+
+        try {
+            // Deduplicate and summarize context
+            const uniqueProducts = Array.from(new Set(scannedProducts.map(p => `${p.brand} ${p.name}`))).slice(0, 10);
+
+            const prompt = `
+            The user has recently scanned these products:
+            ${uniqueProducts.join(", ")}
+
+            User Health Profile:
+            ${userProfileContext}
+
+            Based on their interest and health profile:
+            Suggest 5 highly-rated, safe products that would be good alternatives or complements.
+            Focus on clean, non-toxic options.
+            
+            Return a strict JSON array:
+            [
+                { 
+                    "productName": "Name", 
+                    "brand": "Brand Name",
+                    "category": "Category (e.g. Moisturizer)",
+                    "reason": "Personalized reason based on their history"
+                }
+            ]
+            Do not include Markdown formatting.
+            `;
+
+            const result = await this.model.generateContent(prompt);
+            const response = result.response;
+            const text = response.text();
+
+            const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+            const rawRecs = JSON.parse(jsonStr) as any[];
+
+            // Post-processing to add images
+            const enrichedRecs = await Promise.all(rawRecs.map(async (rec: any) => {
+                const query = encodeURIComponent(`${rec.brand} ${rec.productName}`);
+                let imageUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(rec.productName.substring(0, 20))}`;
+
+                const realImage = await this.findProductImage(rec.brand || "", rec.productName);
+                if (realImage) {
+                    imageUrl = realImage;
+                }
+
+                return {
+                    productName: rec.productName,
+                    brand: rec.brand || "Unknown Brand",
+                    category: rec.category,
+                    reason: rec.reason,
+                    buyLink: `https://www.google.com/search?tbm=shop&q=${query}`,
+                    imageUrl: imageUrl,
+                };
+            }));
+
+            return enrichedRecs;
+
+        } catch (error) {
+            console.error("AI Recommendations Failed:", error);
+            return [];
         }
     }
 

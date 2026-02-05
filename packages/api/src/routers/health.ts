@@ -16,6 +16,9 @@ const profileSchema = z.object({
 export const getProfile = protectedProcedure
     .input(z.object({}))
     .handler(async ({ context }) => {
+        if (!context.session) {
+            return null; // Return null for unauthenticated to restart flow, or throw error depending on UI logic
+        }
         const profile = await db.query.userProfiles.findFirst({
             where: eq(userProfiles.userId, context.session.user.id),
         });
@@ -25,6 +28,9 @@ export const getProfile = protectedProcedure
 export const updateProfile = protectedProcedure
     .input(profileSchema)
     .handler(async ({ input, context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized");
+        }
         try {
             console.log("[Health API] Updating profile for user:", context.session.user.id);
             console.log("[Health API] Input:", JSON.stringify(input));
@@ -75,6 +81,9 @@ export const dailyInsight = protectedProcedure
         })
     )
     .handler(async ({ context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized: You must be logged in.");
+        }
         const userId = context.session.user.id;
         const profile = await db.query.userProfiles.findFirst({
             where: eq(userProfiles.userId, userId),

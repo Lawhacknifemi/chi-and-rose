@@ -140,15 +140,17 @@ export const scanBarcode = publicProcedure
                 throw new Error("Product not found");
             }
 
-            // 3. Record Scan
-            await db.insert(scans).values({
-                userId: context.session.user.id,
-                barcode,
-            });
+            // 3. Record Scan (Only if logged in)
+            if (context.session) {
+                await db.insert(scans).values({
+                    userId: context.session.user.id,
+                    barcode,
+                });
+            }
 
             // 4. Normalize & Analyze
             let analysis;
-            if (product.ingredientsRaw) {
+            if (product.ingredientsRaw && context.session) {
                 const normalizedIngredients = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
                 analysis = await EvaluationEngine.analyze(
                     context.session.user.id,
@@ -291,6 +293,9 @@ export const getRecentScans = protectedProcedure
         )
     )
     .handler(async ({ input, context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized: You must be logged in.");
+        }
         const limit = input.limit || 10;
         console.log(`[getRecentScans] Fetching for User: ${context.session.user.id}, Limit: ${limit}`);
 
@@ -319,7 +324,10 @@ export const getRecentScans = protectedProcedure
                 const isCacheValid = cached && cached.riskCategories;
 
                 if (isCacheValid) {
-                    analysis = cached;
+                    analysis = {
+                        ...cached,
+                        score: cached.score ?? cached.overallSafetyScore ?? 0,
+                    };
                 } else {
                     console.log(`[getRecentScans] Cache stale for ${scan.barcode} (missing riskCategories). Re-analyzing (Full AI)...`);
                     const normalized = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
@@ -393,6 +401,12 @@ export const getProductDetails = protectedProcedure
         })
     )
     .handler(async ({ input, context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized: You must be logged in.");
+        }
+        if (!context.session) {
+            throw new Error("Unauthorized: You must be logged in.");
+        }
         const { barcode } = input;
 
         // 1. Fetch from Cache
@@ -404,37 +418,52 @@ export const getProductDetails = protectedProcedure
             throw new Error("Product not found or missing ingredients.");
         }
 
-        // 2. Full Analysis (skipAi: false)
-        console.log(`[getProductDetails] Running Full Analysis...`);
-        const normalized = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
-        const result = await EvaluationEngine.analyze(
-            context.session.user.id,
-            normalized,
-            product.name || "Unknown",
-            false // FULL AI MODE
-        );
+        let analysis;
+        const cached = product.lastAnalysis as any;
+        // Check if we can just use cached analysis (isValid & has riskCategories)
+        if (cached && cached.riskCategories && cached.overallSafetyScore !== undefined) {
+            analysis = {
+                score: cached.score ?? cached.overallSafetyScore,
+                safetyLevel: cached.safetyLevel,
+                summary: cached.summary,
+                concerns: cached.concerns,
+                positives: cached.positives,
+                alternatives: cached.alternatives,
+                riskCategories: cached.riskCategories
+            };
+        } else {
+            // 2. Full Analysis (skipAi: false) - Only if cache missing or invalid for our needs
+            console.log(`[getProductDetails] running Analysis (Cache miss or stale)...`);
+            const normalized = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
+            const result = await EvaluationEngine.analyze(
+                context.session.user.id,
+                normalized,
+                product.name || "Unknown",
+                false // FULL AI MODE
+            );
 
-        console.log(`[getProductDetails] Saving analysis to DB... Alternatives: ${result.alternatives?.length}`);
+            console.log(`[getProductDetails] Saving analysis... Score: ${result.overallSafetyScore}`);
 
-        // SAVE UPDATE to Cache (Persist!)
-        try {
-            console.log(`[getProductDetails] Persisting analysis for ${barcode}...`);
-            await db.update(productsCache)
-                .set({
-                    lastAnalysis: {
-                        score: result.overallSafetyScore,
-                        safetyLevel: result.safetyLevel,
-                        summary: result.summary,
-                        concerns: result.concerns,
-                        positives: result.positives,
-                        alternatives: result.alternatives,
-                        riskCategories: result.riskCategories, // Add this
-                    }
-                })
-                .where(eq(productsCache.barcode, barcode));
-            console.log(`[getProductDetails] Persistence SUCCESS.`);
-        } catch (err) {
-            console.error(`[getProductDetails] Persistence FAILED:`, err);
+            analysis = {
+                score: result.overallSafetyScore,
+                safetyLevel: result.safetyLevel,
+                summary: result.summary,
+                concerns: result.concerns,
+                positives: result.positives,
+                alternatives: result.alternatives,
+                riskCategories: result.riskCategories,
+            };
+
+            // SAVE UPDATE to Cache (Persist!)
+            try {
+                await db.update(productsCache)
+                    .set({
+                        lastAnalysis: { ...analysis, overallSafetyScore: result.overallSafetyScore } // Persist overallSafetyScore too just in case
+                    })
+                    .where(eq(productsCache.barcode, barcode));
+            } catch (err) {
+                console.error(`[getProductDetails] Persistence FAILED:`, err);
+            }
         }
 
         return {
@@ -445,15 +474,7 @@ export const getProductDetails = protectedProcedure
                 imageUrl: product.imageUrl,
                 ingredients: product.ingredientsRaw,
             },
-            analysis: {
-                score: result.overallSafetyScore,
-                safetyLevel: result.safetyLevel,
-                summary: result.summary,
-                concerns: result.concerns,
-                positives: result.positives,
-                alternatives: result.alternatives,
-                riskCategories: result.riskCategories, // Add this
-            },
+            analysis,
         };
     });
 
@@ -465,7 +486,10 @@ export const createProduct = protectedProcedure
         category: z.string(),
         ingredients: z.string(),
     }))
-    .handler(async ({ input }) => {
+    .handler(async ({ input, context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized: You must be logged in.");
+        }
         const { barcode, name, brand, category, ingredients } = input;
 
         // Upsert into cache (overwrite if exists)

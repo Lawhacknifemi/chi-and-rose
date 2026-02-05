@@ -5,6 +5,7 @@ import * as scannerRouter from "./scanner";
 import * as subscriptionsRouter from "./subscriptions";
 import * as cmsRouter from "./cms";
 import * as usersRouter from "./users";
+import * as discoverRouter from "./discover";
 
 console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 
@@ -57,6 +58,9 @@ export const appRouter = publicProcedure.router({
     toggleSuspension: usersRouter.toggleSuspension,
     updateUserPlan: usersRouter.updateUserPlan,
     deleteUser: usersRouter.deleteUser,
+  }),
+  discover: publicProcedure.router({
+    getFeed: discoverRouter.getFeed,
   }),
 });
 export type AppRouter = typeof appRouter;

@@ -75,7 +75,45 @@ app.use(
 // Middleware Stack
 // -------------------------------------------------------------------------
 
-// 1. Better-Auth Handler
+// Custom Handler for Form-Based Social Sign-In (Intercepts before Better-Auth)
+app.post("/api/auth/sign-in/social", express.urlencoded({ extended: true }), async (req, res, next) => {
+  if (req.headers["content-type"] === "application/x-www-form-urlencoded") {
+    console.log("[Auth Middleware] Intercepting Form Request for Social Sign-In");
+    try {
+      const { provider, callbackURL } = req.body;
+
+      // Use the Better Auth API directly!
+      const response = await auth.api.signInSocial({
+        body: {
+          provider,
+          callbackURL
+        },
+        asResponse: true // We need the headers (Set-Cookie)
+      });
+
+      // Copy headers (Crucial for Set-Cookie: better-auth.state)
+      response.headers.forEach((value, key) => {
+        res.setHeader(key, value);
+      });
+
+      // Better Auth returns a JSON response with the URL
+      const data = await response.json();
+
+      if (data && data.url) {
+        console.log("[Auth Middleware] Redirecting to:", data.url);
+        return res.redirect(data.url);
+      }
+
+      return res.status(500).send("No redirect URL returned from auth provider");
+    } catch (e) {
+      console.error("[Auth Middleware] Error:", e);
+      return res.status(500).send("Internal Auth Error");
+    }
+  }
+  next();
+});
+
+// 1. Better-Auth Handler (runs for all other requests)
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth")) {
@@ -96,8 +134,6 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
   }
 });
-
-console.log("[DEBUG] Body parsing middleware registered");
 
 // Create oRPC handler using REAL appRouter (kept for reference or fallback usage if needed)
 const rpcHandler = new RPCHandler({
@@ -161,6 +197,11 @@ app.get("/login/success", async (req, res) => {
 app.get("/login/:provider", (req, res) => {
   const { provider } = req.params;
   const { callbackURL } = req.query; // The final deep link destination
+
+  console.log(`[Auth Bridge] Request: ${req.url}`);
+  console.log(`[Auth Bridge] Provider: ${provider}`);
+  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
+  console.log(`[Auth Bridge] Query Keys:`, Object.keys(req.query));
 
   if (!provider || !callbackURL) {
     return res.status(400).send("Missing provider or callbackURL");

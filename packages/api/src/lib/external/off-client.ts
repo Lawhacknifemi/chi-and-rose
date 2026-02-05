@@ -43,4 +43,45 @@ export class OpenFoodFactsClient {
             return null;
         }
     }
+
+    async searchProduct(query: string): Promise<OFFProduct | null> {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+            // Search API: https://world.openfoodfacts.org/cgi/search.pl
+            const params = new URLSearchParams({
+                search_terms: query,
+                search_simple: "1",
+                action: "process",
+                json: "1",
+                page_size: "1"
+            });
+
+            const response = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?${params.toString()}`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) return null;
+
+            const data = await response.json() as any;
+            if (!data.products || data.products.length === 0) return null;
+
+            const p = data.products[0];
+            return {
+                barcode: p.code || "unknown",
+                name: p.product_name,
+                brand: p.brands,
+                category: p.categories,
+                ingredientsRaw: p.ingredients_text,
+                nutrition: p.nutriscore_data || p.nutriments,
+                imageUrl: p.image_url || p.image_front_url || p.image_small_url,
+                source: "open_food_facts",
+            };
+        } catch (error) {
+            console.error("OFF Search Error:", error);
+            return null;
+        }
+    }
 }
