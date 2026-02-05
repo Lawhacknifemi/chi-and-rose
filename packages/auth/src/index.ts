@@ -28,6 +28,23 @@ export const auth = betterAuth({
     provider: "pg",
 
     schema: schema,
+    hooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()) {
+              console.log(`[Auth] Auto-promoting ${user.email} to admin`);
+              return {
+                data: {
+                  ...user,
+                  role: "admin",
+                },
+              };
+            }
+          },
+        },
+      },
+    },
   }),
   trustedOrigins: [
     env.CORS_ORIGIN,
