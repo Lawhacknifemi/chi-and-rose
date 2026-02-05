@@ -27,7 +27,7 @@ ENV NODE_ENV=production
 # Skip env validation during build (standard for T3 env)
 ENV SKIP_ENV_VALIDATION=1
 # Provide dummy value just in case validation isn't skipped
-ENV NEXT_PUBLIC_SERVER_URL="http://placeholder"
+ENV NEXT_PUBLIC_SERVER_URL="https://clownfish-app-t7z9u.ondigitalocean.app"
 
 # IMPORTANT: We use 'bun run build' which invokes 'next build'. 
 # Since we are in a Node image, the 'node' binary is Node.js, so Next.js uses Node. 
