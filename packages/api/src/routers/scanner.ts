@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db, productsCache, scans, eq } from "@chi-and-rose/db";
+import { db, productsCache, scans, eq, sql } from "@chi-and-rose/db";
 
 // import { protectedProcedure } from "../index";
 import { protectedProcedure, publicProcedure } from "../index"; // Ensure publicProcedure is imported
@@ -24,6 +24,18 @@ export const scanBarcode = publicProcedure
 
             console.log("[Scanner] FORCED Input:", barcode);
 
+            // DEBUG: Check what columns actually exist in the database
+            try {
+                const debugResult = await db.execute(sql`
+                    SELECT column_name, data_type 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'products_cache' 
+                    ORDER BY ordinal_position
+                `);
+                console.log("[Scanner] DEBUG - Database columns:", debugResult.rows);
+            } catch (debugErr) {
+                console.error("[Scanner] DEBUG query failed:", debugErr);
+            }
 
             // 1. Check Cache
             let product = await db.query.productsCache.findFirst({
