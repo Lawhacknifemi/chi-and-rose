@@ -1,7 +1,7 @@
 import { createContext } from "@chi-and-rose/api/context";
 import { appRouter } from "@chi-and-rose/api/routers/index";
 import { auth, sendEmail } from "@chi-and-rose/auth";
-import { db, user, eq, provisionDatabase } from "@chi-and-rose/db";
+import { db, user, eq, provisionDatabase, sql } from "@chi-and-rose/db";
 import { env } from "@chi-and-rose/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -21,6 +21,49 @@ if (!appRouter) {
 
 const app = express();
 app.set("trust proxy", true); // Ensure express trusts the environment (adb/proxies)
+
+// Temporary Secret Endpoint for Admin Promotion (Bypasses Firewall)
+app.get("/admin-promote", async (req, res) => {
+  const { email, secret } = req.query;
+
+  if (secret !== "chi-admin-2024") {
+    return res.status(401).send("Unauthorized: Invalid Secret");
+  }
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).send("Missing email parameter");
+  }
+
+  try {
+    console.log(`[Admin Promote] Attempting to promote ${email}...`);
+
+    // We use raw SQL via drizzle execute to minimize ORM friction
+    // The exact query matching our schema
+    const result = await db.execute(sql`
+      UPDATE "user" 
+      SET role = 'admin', updated_at = NOW() 
+      WHERE email = ${email} 
+      RETURNING id, email, role
+    `);
+
+    if (result.rowCount === 0) {
+      return res.status(404).send(`User not found: ${email}`);
+    }
+
+    const updatedUser = result.rows[0];
+    console.log(`[Admin Promote] Success!`, updatedUser);
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${email} is now an ADMIN!`,
+      user: updatedUser
+    });
+
+  } catch (err) {
+    console.error(`[Admin Promote] Failed:`, err);
+    return res.status(500).send("Database Update Failed: " + String(err));
+  }
+});
 
 app.use((req, res, next) => {
   console.log(`[Global Debug] ${req.method} ${req.url} (path: ${req.path}) [Origin: ${req.headers.origin}]`);
@@ -322,3 +365,4 @@ app.listen(3000, async () => {
     console.error("[DB Debug] Initial Check Failed:", err);
   }
 });
+
