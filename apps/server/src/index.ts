@@ -160,7 +160,7 @@ const apiHandler = new OpenAPIHandler({
 // Mount oRPC handlers
 app.use("/rpc", async (req, res, next) => {
   const rpcResult = await rpcHandler.handle(req, res, {
-    prefix: "/rpc",
+    prefix: "", // Express strips '/rpc' from req.url, so we don't need to strip it again.
     context: await createContext({ req }),
   });
   if (rpcResult.matched) return;
@@ -177,18 +177,35 @@ app.all("/healthCheck", (req, res) => {
 });
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
+// Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
-  // Reverted manual slash stripping (caused url.parse error)
+  // Debug Log for Fallback Matcher
+  // console.log(`[RPC Fallback Debug] Incoming: url='${req.url}', path='${req.path}', baseUrl='${req.baseUrl}'`);
 
-  // Try matching with prefix "/" which is standard for root-mounted routers
+  // Try matching with empty prefix (assuming path is full relative path)
   const result = await rpcHandler.handle(req, res, {
-    prefix: "/",
+    prefix: "", // CHANGED from "/" to "" to avoid over-stripping or mismatch
     context: await createContext({ req }),
   });
 
-  console.log(`[RPC Fallback v3] handled: matched=${result.matched}, url=${req.url}, path=${req.path}`);
+  if (result.matched) {
+    console.log(`[RPC Fallback] MATCHED: url=${req.url}`);
+    return;
+  }
 
-  if (result.matched) return;
+  // If failed, try with "/" just in case (Double attempt strategy)
+  /*
+  const result2 = await rpcHandler.handle(req, res, {
+    prefix: "/",
+    context: await createContext({ req }),
+  });
+  if (result2.matched) {
+     console.log(`[RPC Fallback] MATCHED (retry with /): url=${req.url}`);
+     return;
+  }
+  */
+
+  console.log(`[RPC Fallback] handled: matched=${result.matched}, url=${req.url}`);
   next();
 });
 
