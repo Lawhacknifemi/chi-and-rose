@@ -282,6 +282,20 @@ app.get("/login/:provider", (req, res) => {
   res.send(html);
 });
 
+app.get("/debug-router", (req, res) => {
+  // Safe iteration for ORPC router structure
+  const getKeys = (obj: any) => {
+    if (!obj) return "undefined";
+    return Object.keys(obj);
+  };
+
+  res.json({
+    appRouterKeys: getKeys(appRouter),
+    scannerKeys: getKeys((appRouter as any).scanner),
+    healthKeys: getKeys((appRouter as any).health),
+  });
+});
+
 app.get("/debug-env", (req, res) => {
   res.json({
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
