@@ -28,23 +28,6 @@ export const auth = betterAuth({
     provider: "pg",
 
     schema: schema,
-    hooks: {
-      user: {
-        create: {
-          before: async (user) => {
-            if (env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()) {
-              console.log(`[Auth] Auto-promoting ${user.email} to admin`);
-              return {
-                data: {
-                  ...user,
-                  role: "admin",
-                },
-              };
-            }
-          },
-        },
-      },
-    },
   }),
   trustedOrigins: [
     env.CORS_ORIGIN,
@@ -88,6 +71,36 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    {
+      id: "auto-admin",
+      schema: {
+        user: {
+          fields: {
+            role: { type: "string" }
+          }
+        }
+      },
+      hooks: {
+        user: {
+          create: {
+            before: async (user) => {
+              if (env.ADMIN_EMAIL) {
+                const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
+                if (adminEmails.includes(user.email.toLowerCase())) {
+                  console.log(`[Auth] Auto-promoting ${user.email} to admin`);
+                  return {
+                    data: {
+                      ...user,
+                      role: "admin",
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } as any,
     bearer(),
     emailOTP({
       otpLength: 4, // Set to 4 digits as per user requirement

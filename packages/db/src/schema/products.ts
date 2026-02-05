@@ -9,10 +9,8 @@ export const productsCache = pgTable("products_cache", {
     ingredientsRaw: text("ingredients_raw"),
     ingredientsParsed: jsonb("ingredients_parsed").$type<string[]>(),
     nutrition: jsonb("nutrition"),
-    // TEMPORARY: Commented out due to DigitalOcean connection pooler cache issue
-    // Uncomment these once the pooler cache refreshes (10-15 minutes)
-    // imageUrl: text("image_url"),
-    // lastAnalysis: jsonb("last_analysis").$type<any>(), // Stores full analysis result
+    imageUrl: text("image_url"),
+    lastAnalysis: jsonb("last_analysis").$type<any>(), // Stores full analysis result
     lastFetched: timestamp("last_fetched").defaultNow().notNull(),
 });
 
