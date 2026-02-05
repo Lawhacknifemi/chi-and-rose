@@ -62,6 +62,17 @@ export const appRouter = publicProcedure.router({
   discover: publicProcedure.router({
     getFeed: discoverRouter.getFeed,
   }),
+  community: publicProcedure.router({
+    listPosts: communityRouter.listPosts,
+    getPost: communityRouter.getPost,
+    createPost: communityRouter.createPost,
+    updatePost: communityRouter.updatePost,
+    deletePost: communityRouter.deletePost,
+    listComments: communityRouter.listComments,
+    createComment: communityRouter.createComment,
+    updateComment: communityRouter.updateComment,
+    deleteComment: communityRouter.deleteComment,
+  }),
 });
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

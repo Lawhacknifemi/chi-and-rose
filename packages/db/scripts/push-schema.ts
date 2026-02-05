@@ -238,6 +238,58 @@ async function pushSchema() {
     `);
     console.log("✓ Created daily_tips table");
 
+    // Create community_groups table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "community_groups" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "icon_url" TEXT,
+        "member_count" INTEGER DEFAULT 0 NOT NULL,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created community_groups table");
+
+    // Create community_posts table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "community_posts" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "group_id" UUID REFERENCES "community_groups"("id"),
+        "user_id" TEXT NOT NULL REFERENCES "user"("id"),
+        "title" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "image_url" TEXT,
+        "likes_count" INTEGER DEFAULT 0 NOT NULL,
+        "comments_count" INTEGER DEFAULT 0 NOT NULL,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created community_posts table");
+
+    // Create community_comments table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "community_comments" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "post_id" UUID NOT NULL REFERENCES "community_posts"("id"),
+        "user_id" TEXT NOT NULL REFERENCES "user"("id"),
+        "content" TEXT NOT NULL,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created community_comments table");
+
+    // Create indexes for community tables
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS "community_posts_group_id_idx" ON "community_posts"("group_id");
+      CREATE INDEX IF NOT EXISTS "community_posts_user_id_idx" ON "community_posts"("user_id");
+      CREATE INDEX IF NOT EXISTS "community_comments_post_id_idx" ON "community_comments"("post_id");
+    `);
+    console.log("✓ Created community table indexes");
+
     console.log("\n✅ All tables created successfully!");
 
     process.exit(0);
