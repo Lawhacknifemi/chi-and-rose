@@ -42,10 +42,17 @@ export async function handleRPC(req: Request, res: Response) {
         // OR try to use caller?
         // Let's try internal handler first as seen in manual test
         if (current && current['~orpc'] && current['~orpc'].handler) {
-            const result = await current['~orpc'].handler({ input, context: ctx });
-            // Correct ORPC format: { json: <data>, meta: [...] }
-            // We omit meta for simple cases.
-            return res.json({ json: result });
+            try {
+                const result = await current['~orpc'].handler({ input, context: ctx });
+                // Correct ORPC format: { json: <data>, meta: [...] }
+                // We omit meta for simple cases.
+                return res.json({ json: result });
+            } catch (handlerErr: any) {
+                console.error("[CustomRPC] Handler execution error:", handlerErr);
+                console.error("[CustomRPC] Handler error stack:", handlerErr.stack);
+                console.error("[CustomRPC] Handler error details:", JSON.stringify(handlerErr, null, 2));
+                return res.status(500).json({ error: handlerErr.message || "Internal server error", stack: handlerErr.stack });
+            }
         } else {
             console.error("[CustomRPC] Target is not a procedure");
             return res.status(404).json({ error: "Target is not a procedure" });
@@ -53,6 +60,7 @@ export async function handleRPC(req: Request, res: Response) {
 
     } catch (err: any) {
         console.error("[CustomRPC] Execution error:", err);
+        console.error("[CustomRPC] Error stack:", err.stack);
         return res.status(500).json({ error: err.message });
     }
 }
