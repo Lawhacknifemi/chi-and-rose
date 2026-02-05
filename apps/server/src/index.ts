@@ -173,12 +173,15 @@ app.use("/rpc", async (req, res, next) => {
   }
 
   // Debug Log
-  // console.log(`[RPC Handler] Processing: ${req.url}`);
+  console.log(`[RPC Handler] Processing: url='${req.url}' originalUrl='${req.originalUrl}'`);
 
   const rpcResult = await rpcHandler.handle(req, res, {
     prefix: "",
     context: await createContext({ req }),
   });
+
+  console.log(`[RPC Handler] Result: matched=${rpcResult.matched}`);
+
   if (rpcResult.matched) return;
   next();
 });
