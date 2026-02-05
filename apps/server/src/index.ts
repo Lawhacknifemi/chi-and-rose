@@ -159,8 +159,13 @@ const apiHandler = new OpenAPIHandler({
 
 // Mount oRPC handlers
 app.use("/rpc", async (req, res, next) => {
+  // Manual Fix: Ensure req.url does not have leading slash so 'orpc' matches correctly with prefix=""
+  if (req.url.startsWith("/")) {
+    req.url = req.url.slice(1);
+  }
+
   const rpcResult = await rpcHandler.handle(req, res, {
-    prefix: "", // Express strips '/rpc' from req.url, so we don't need to strip it again.
+    prefix: "",
     context: await createContext({ req }),
   });
   if (rpcResult.matched) return;
@@ -177,10 +182,14 @@ app.all("/healthCheck", (req, res) => {
 });
 
 // Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
-// Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
 app.use("/", async (req, res, next) => {
   // Debug Log for Fallback Matcher
   // console.log(`[RPC Fallback Debug] Incoming: url='${req.url}', path='${req.path}', baseUrl='${req.baseUrl}'`);
+
+  // Manual Fix: Ensure req.url does not have leading slash
+  if (req.url.startsWith("/")) {
+    req.url = req.url.slice(1);
+  }
 
   // Try matching with empty prefix (assuming path is full relative path)
   const result = await rpcHandler.handle(req, res, {
