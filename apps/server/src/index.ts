@@ -22,48 +22,20 @@ if (!appRouter) {
 const app = express();
 app.set("trust proxy", true); // Ensure express trusts the environment (adb/proxies)
 
-// Temporary Secret Endpoint for Admin Promotion (Bypasses Firewall)
-app.get("/admin-promote", async (req, res) => {
-  const { email, secret } = req.query;
-
-  if (secret !== "chi-admin-2024") {
-    return res.status(401).send("Unauthorized: Invalid Secret");
-  }
-
-  if (!email || typeof email !== "string") {
-    return res.status(400).send("Missing email parameter");
-  }
-
-  try {
-    console.log(`[Admin Promote] Attempting to promote ${email}...`);
-
-    // We use raw SQL via drizzle execute to minimize ORM friction
-    // The exact query matching our schema
-    const result = await db.execute(sql`
-      UPDATE "user" 
-      SET role = 'admin', updated_at = NOW() 
-      WHERE email = ${email} 
-      RETURNING id, email, role
-    `);
-
-    if (result.rowCount === 0) {
-      return res.status(404).send(`User not found: ${email}`);
-    }
-
-    const updatedUser = result.rows[0];
-    console.log(`[Admin Promote] Success!`, updatedUser);
-
-    return res.status(200).json({
-      success: true,
-      message: `User ${email} is now an ADMIN!`,
-      user: updatedUser
-    });
-
-  } catch (err) {
-    console.error(`[Admin Promote] Failed:`, err);
-    return res.status(500).send("Database Update Failed: " + String(err));
-  }
+// 1. Logger First!
+app.use((req, res, next) => {
+  console.log(`[Global Debug] ${req.method} ${req.url} (path: ${req.path}) [Origin: ${req.headers.origin}]`);
+  next();
 });
+
+// 2. Simple Root Check
+app.get("/", (req, res) => {
+  res.status(200).send("Server Ready (v2)");
+});
+
+
+// Temporary Secret Endpoint for Admin Promotion (Bypasses Firewall)
+
 
 app.use((req, res, next) => {
   console.log(`[Global Debug] ${req.method} ${req.url} (path: ${req.path}) [Origin: ${req.headers.origin}]`);
@@ -78,6 +50,7 @@ app.use((req, res, next) => {
         cookies[name] = value;
       });
       console.log(`[Auth Debug] Cookies keys:`, Object.keys(cookies));
+
 
       // Log state cookie existence specifically (masked)
       const stateCookie = Object.keys(cookies).find(k => k.includes('state'));
@@ -329,8 +302,28 @@ app.listen(3000, async () => {
   // SELF-PROVISIONING: Ensure DB tables exist
   try {
     await provisionDatabase();
+
+    // ADMIN BOOTSTRAP: Promote user if ADMIN_EMAIL is set
+    if (env.ADMIN_EMAIL) {
+      console.log(`[Admin Bootstrap] Checking for admin user: ${env.ADMIN_EMAIL}...`);
+      try {
+        const result = await db.execute(sql`
+            UPDATE "user" 
+            SET role = 'admin', updated_at = NOW() 
+            WHERE email = ${env.ADMIN_EMAIL} AND role != 'admin'
+            RETURNING id, email, role
+         `);
+        if (result.rowCount && result.rowCount > 0) {
+          console.log(`✅ [Admin Bootstrap] Successfully promoted ${env.ADMIN_EMAIL} to ADMIN!`);
+        } else {
+          console.log(`ℹ️ [Admin Bootstrap] User ${env.ADMIN_EMAIL} not found or already admin.`);
+        }
+      } catch (adminErr) {
+        console.error("❌ [Admin Bootstrap] Failed:", adminErr);
+      }
+    }
   } catch (err) {
-    console.error("[CRITICAL] Failed to provision database:", err);
+    console.error("[CRITICAL] Database/Admin Setup Failed:", err);
   }
 
   console.log("Server is running on http://0.0.0.0:3000");

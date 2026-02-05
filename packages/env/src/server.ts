@@ -13,6 +13,9 @@ export const env = createEnv({
     CORS_ORIGIN: z.url(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
+    // Admin Bootstrap
+    ADMIN_EMAIL: z.string().email().optional(),
+
     // Email (Optional for now, defaults to mock)
     RESEND_API_KEY: z.string().optional(),
     EMAIL_FROM: z.string().default("noreply@example.com"),
