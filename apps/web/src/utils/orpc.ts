@@ -16,9 +16,7 @@ export const queryClient = new QueryClient({
 });
 
 export const link = new RPCLink({
-  url: typeof window === "undefined"
-    ? "http://api-server:3000/rpc"
-    : "https://clownfish-app-t7z9u.ondigitalocean.app/rpc",
+  url: `${env.NEXT_PUBLIC_SERVER_URL}/rpc`,
   async fetch(url, options) {
     return fetch(url, {
       ...options,

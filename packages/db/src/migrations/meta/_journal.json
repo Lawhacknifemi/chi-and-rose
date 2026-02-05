@@ -15,6 +15,13 @@
       "when": 1770025958321,
       "tag": "0001_nervous_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770291529700,
+      "tag": "0002_bumpy_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

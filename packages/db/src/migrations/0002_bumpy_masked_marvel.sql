@@ -1,0 +1,1 @@
+ALTER TABLE "products_cache" ADD COLUMN "last_analysis" jsonb;

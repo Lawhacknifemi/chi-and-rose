@@ -11,7 +11,7 @@ console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 // Explicitly define router using builder to ensure symbols are attached
 export const appRouter = publicProcedure.router({
   healthCheck: publicProcedure.handler(() => {
-    return { status: "OK" };
+    return "OK";
   }),
   privateData: protectedProcedure.handler(({ context }) => {
     return {
@@ -20,27 +20,27 @@ export const appRouter = publicProcedure.router({
     };
   }),
   // Subscription/Entitlement endpoints (separate from auth)
-  subscriptions: {
+  subscriptions: publicProcedure.router({
     verifyGooglePlay: subscriptionsRouter.verifyGooglePlayPurchase,
     verifyApple: subscriptionsRouter.verifyApplePurchase,
     getSubscriptions: subscriptionsRouter.getSubscriptions,
     hasAccess: subscriptionsRouter.hasAccess,
     syncSubscription: subscriptionsRouter.syncSubscription,
-  },
-  health: {
+  }),
+  health: publicProcedure.router({
     getProfile: healthRouter.getProfile,
     updateProfile: healthRouter.updateProfile,
     dailyInsight: healthRouter.dailyInsight,
     getFeed: healthRouter.getFeed,
-  },
-  scanner: {
+  }),
+  scanner: publicProcedure.router({
     scanBarcode: scannerRouter.scanBarcode,
     getIngredientInsight: scannerRouter.getIngredientInsight,
     getRecentScans: scannerRouter.getRecentScans,
     analyzeIngredients: scannerRouter.analyzeIngredients,
     createProduct: scannerRouter.createProduct,
-  },
-  cms: {
+  }),
+  cms: publicProcedure.router({
     listArticles: cmsRouter.listArticles,
     getArticle: cmsRouter.getArticle,
     createArticle: cmsRouter.createArticle,
@@ -51,13 +51,13 @@ export const appRouter = publicProcedure.router({
     updateTip: cmsRouter.updateTip,
     deleteTip: cmsRouter.deleteTip,
     getTip: cmsRouter.getTip,
-  },
-  users: {
+  }),
+  users: publicProcedure.router({
     listUsers: usersRouter.listUsers,
     toggleSuspension: usersRouter.toggleSuspension,
     updateUserPlan: usersRouter.updateUserPlan,
     deleteUser: usersRouter.deleteUser,
-  },
+  }),
 });
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

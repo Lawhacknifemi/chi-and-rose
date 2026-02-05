@@ -1,27 +1,27 @@
 import { z } from "zod";
 import { db, productsCache, scans, eq } from "@chi-and-rose/db";
-// import { eq, desc } from "drizzle-orm"; // REMOVED to fix version mismatch
-import { protectedProcedure } from "../index";
-import { OpenFoodFactsClient } from "../lib/external/off-client";
-import { OpenBeautyFactsClient } from "../lib/external/obf-client";
-import { UpcItemDbClient } from "../lib/external/upc-client";
+
+// import { protectedProcedure } from "../index";
+import { protectedProcedure, publicProcedure } from "../index"; // Ensure publicProcedure is imported
 import { EvaluationEngine } from "../lib/engine/evaluation";
+import { OpenBeautyFactsClient } from "../lib/external/obf-client";
+import { OpenFoodFactsClient } from "../lib/external/off-client";
+import { UpcItemDbClient } from "../lib/external/upc-client";
+import { imageService } from "../services/image";
 
 const offClient = new OpenFoodFactsClient();
 const obfClient = new OpenBeautyFactsClient();
 const upcClient = new UpcItemDbClient();
 
-import { imageService } from "../services/image";
-
-// ... (imports)
-
-export const scanBarcode = protectedProcedure
+export const scanBarcode = publicProcedure
     .input(z.object({
         barcode: z.string(),
         suppressError: z.boolean().optional().default(false),
     }))
     .handler(async ({ input, context }) => {
         const { barcode, suppressError } = input;
+
+        console.log("[Scanner] FORCED Input:", barcode);
 
 
         // 1. Check Cache

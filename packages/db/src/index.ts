@@ -5,6 +5,8 @@ import pg from "pg";
 
 import * as schema from "./schema";
 
+console.log("[DB] Connecting to database:", env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@')); // Mask password
+
 export * from "./schema";
 export * from "drizzle-orm";
 export * from "./provision";
