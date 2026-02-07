@@ -25,10 +25,14 @@ export async function createContext(opts: CreateContextOptions) {
   // It will automatically extract the session token from:
   // - Cookie: better-auth.session_token=...
   // - Authorization: Bearer <session_token>
+  console.log(`[Context] Incoming Request: ${opts.req.method} ${opts.req.url} (Host: ${opts.req.headers.host})`);
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(opts.req.headers),
   });
   console.log(`[Context] Session found: ${!!session}`, session?.user?.id);
+  if (!session && opts.req.headers.authorization) {
+    console.log(`[Context] Authorization header present but session NOT found. Token mismatch?`);
+  }
 
   return {
     session,

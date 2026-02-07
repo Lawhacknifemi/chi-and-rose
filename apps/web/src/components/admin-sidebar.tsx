@@ -29,8 +29,8 @@ const items = [
         icon: Lightbulb,
     },
     {
-        title: "Users",
-        url: "/admin/users",
+        title: "Community",
+        url: "/admin/community",
         icon: Users,
     },
     {

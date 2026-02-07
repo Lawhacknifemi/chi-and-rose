@@ -10,6 +10,7 @@ export const listUsers = adminProcedure
         email: z.string(),
         role: z.string(),
         isSuspended: z.boolean(),
+        canComment: z.boolean(),
         plan: z.string(),
         createdAt: z.date(),
     })))
@@ -20,6 +21,7 @@ export const listUsers = adminProcedure
             email: user.email,
             role: user.role,
             isSuspended: user.isSuspended,
+            canComment: user.canComment,
             plan: user.plan,
             createdAt: user.createdAt,
         })

@@ -19,9 +19,11 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@zxing/library": "^0.21.3",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.1",
+    "jimp": "^1.6.0",
     "nanoid": "^5.0.7",
     "zod": "catalog:"
   },

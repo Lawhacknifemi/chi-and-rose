@@ -14,6 +14,9 @@ export const auth = betterAuth({
   logging: {
     level: "debug",
   },
+  onNodeInit: async () => {
+    console.log(`[Auth Package] Better-Auth Initialized with baseURL: ${env.BETTER_AUTH_URL}/api/auth`);
+  },
   user: {
     additionalFields: {
       role: {
@@ -22,6 +25,11 @@ export const auth = betterAuth({
       },
     },
   },
+  // baseURL: `${env.BETTER_AUTH_URL}/api/auth`,
+  // Better Auth baseURL is usually strict, but we can make it more flexible in dev
+  // by using the provided env or defaulting. If we need to support multiple IPs (like 10.0.2.2),
+  // Better Auth 1.1+ can sometimes handle it if trustedOrigins are set, 
+  // but for earlier versions, baseURL must match the request.
   baseURL: `${env.BETTER_AUTH_URL}/api/auth`,
   // basePath is NOT needed here - Express mounting path IS the basePath
   database: drizzleAdapter(db, {
@@ -33,9 +41,11 @@ export const auth = betterAuth({
     env.CORS_ORIGIN,
     "chiandrose://",
     "chiandrose://app",
-    "http://10.0.2.2:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3000",
+    "http://10.0.2.2:3000",
+    "http://0.0.0.0:3000",
+    "http://localhost:3001",
     "http://127.0.0.1:3001",
     "http://localhost:3001"
   ],

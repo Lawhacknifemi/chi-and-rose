@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { db, productsCache, scans, eq, sql } from "@chi-and-rose/db";
+import { MultiFormatReader, BarcodeFormat, DecodeHintType, RGBLuminanceSource, BinaryBitmap, HybridBinarizer } from '@zxing/library';
+import { Jimp } from "jimp";
 
 // import { protectedProcedure } from "../index";
 import { protectedProcedure, publicProcedure } from "../index"; // Ensure publicProcedure is imported
@@ -13,10 +15,79 @@ const offClient = new OpenFoodFactsClient();
 const obfClient = new OpenBeautyFactsClient();
 const upcClient = new UpcItemDbClient();
 
+export const detectBarcode = publicProcedure
+    .input(z.object({
+        imageBase64: z.string(),
+    }))
+    .output(z.object({
+        found: z.boolean(),
+        barcode: z.string().optional(),
+    }))
+    .handler(async ({ input }) => {
+        try {
+            const buffer = Buffer.from(input.imageBase64, "base64");
+            const image = await Jimp.read(buffer);
+
+            const hints = new Map();
+            const formats = [
+                BarcodeFormat.UPC_A,
+                BarcodeFormat.UPC_E,
+                BarcodeFormat.EAN_13,
+                BarcodeFormat.EAN_8,
+                BarcodeFormat.CODE_128,
+                BarcodeFormat.CODE_39,
+                BarcodeFormat.ITF,
+                BarcodeFormat.QR_CODE
+            ];
+            hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+
+            const reader = new MultiFormatReader();
+            reader.setHints(hints);
+
+            // Jimp provides R,G,B,A in bitmap.data
+            const luminanceSource = new RGBLuminanceSource(image.bitmap.width, image.bitmap.height, image.bitmap.data as any);
+            const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
+
+            const result = reader.decode(binaryBitmap);
+
+            if (result) {
+                console.log(`[detectBarcode] Server-side detection success: ${result.getText()}`);
+                return { found: true, barcode: result.getText() };
+            }
+        } catch (error) {
+            // ZXing throws NotFoundException if no code is found, which is normal
+            // console.log("[detectBarcode] No barcode found or error:", error);
+        }
+        return { found: false };
+    });
+
 export const scanBarcode = publicProcedure
     .input(z.object({
         barcode: z.string(),
         suppressError: z.boolean().optional().default(false),
+    }))
+    .output(z.object({
+        found: z.boolean(),
+        barcode: z.string().optional(),
+        product: z.object({
+            name: z.string().nullable().optional(),
+            brand: z.string().nullable().optional(),
+            category: z.string().nullable().optional(),
+            ingredients: z.string().nullable().optional(),
+            imageUrl: z.string().nullable().optional(),
+        }).optional(),
+        analysis: z.object({
+            overallSafetyScore: z.number().optional(),
+            safetyLevel: z.string().optional(),
+            summary: z.string().optional(),
+            concerns: z.array(z.object({
+                ingredient: z.string(),
+                reason: z.string(),
+                severity: z.string(),
+            })).optional(),
+            positives: z.array(z.string()).optional(),
+            alternatives: z.array(z.any()).optional(),
+        }).nullable().optional(),
     }))
     .handler(async ({ input, context }) => {
         try {
@@ -135,17 +206,20 @@ export const scanBarcode = publicProcedure
 
             if (!product) {
                 if (suppressError) {
-                    return { found: false, barcode } as const;
+                    return { found: false, barcode };
                 }
                 throw new Error("Product not found");
             }
 
             // 3. Record Scan (Only if logged in)
             if (context.session) {
+                console.log(`[scanBarcode] Recording scan for user: ${context.session.user.id}, barcode: ${barcode}`);
                 await db.insert(scans).values({
                     userId: context.session.user.id,
                     barcode,
                 });
+            } else {
+                console.log(`[scanBarcode] Skipping scan recording - No session found for barcode: ${barcode}`);
             }
 
             // 4. Normalize & Analyze
@@ -190,7 +264,7 @@ export const scanBarcode = publicProcedure
                     imageUrl: product.imageUrl,
                 },
                 analysis,
-            } as const;
+            };
         } catch (error: any) {
             console.error("[Scanner] ERROR:", error);
             console.error("[Scanner] ERROR Stack:", error.stack);
@@ -201,6 +275,15 @@ export const scanBarcode = publicProcedure
 
 export const getIngredientInsight = protectedProcedure
     .input(z.object({ name: z.string() }))
+    .output(z.object({
+        name: z.string(),
+        insight: z.object({
+            ingredient: z.string(),
+            reason: z.string(),
+            severity: z.string()
+        }).nullable(),
+        safetyLevel: z.string()
+    }))
     .handler(async ({ input, context }) => {
         const analysis = await EvaluationEngine.analyze(context.session.user.id, [input.name.toLowerCase()], "ingredient");
 
@@ -309,13 +392,14 @@ export const getRecentScans = protectedProcedure
             limit: limit,
         });
 
-        console.log(`[getRecentScans] Found ${recentScans.length} raw scans.`);
+        console.log(`[getRecentScans] Found ${recentScans.length} raw scans for user ${userId}.`);
 
         const results = [];
         for (const scan of recentScans) {
             const product = await db.query.productsCache.findFirst({
                 where: eq(productsCache.barcode, scan.barcode),
             });
+            console.log(`[getRecentScans] Processing scan: ${scan.barcode}, Product found: ${!!product}`);
 
             let analysis = null;
             if (product && product.ingredientsRaw) {
@@ -369,6 +453,7 @@ export const getRecentScans = protectedProcedure
                 analysis: analysis || undefined
             });
         }
+        console.log(`[getRecentScans] Returning ${results.length} results.`);
         return results;
     });
 
@@ -486,6 +571,10 @@ export const createProduct = protectedProcedure
         category: z.string(),
         ingredients: z.string(),
     }))
+    .output(z.object({
+        success: z.boolean(),
+        barcode: z.string(),
+    }))
     .handler(async ({ input, context }) => {
         if (!context.session) {
             throw new Error("Unauthorized: You must be logged in.");
@@ -517,3 +606,159 @@ export const createProduct = protectedProcedure
 
         return { success: true, barcode };
     });
+
+export const scanFromImage = protectedProcedure
+    .input(z.object({
+        imageDataUrl: z.string(), // Base64 image data
+        barcode: z.string(), // Manual barcode entry
+    }))
+    .output(z.object({
+        found: z.boolean(),
+        barcode: z.string().optional(),
+        imageUrl: z.string().optional(), // Uploaded image URL
+        product: z.object({
+            name: z.string().nullable().optional(),
+            brand: z.string().nullable().optional(),
+            category: z.string().nullable().optional(),
+            ingredients: z.string().nullable().optional(),
+            imageUrl: z.string().nullable().optional(),
+        }).optional(),
+        analysis: z.object({
+            overallSafetyScore: z.number().optional(),
+            safetyLevel: z.string().optional(),
+            summary: z.string().optional(),
+            concerns: z.array(z.object({
+                ingredient: z.string(),
+                reason: z.string(),
+                severity: z.string(),
+            })).optional(),
+            positives: z.array(z.string()).optional(),
+            alternatives: z.array(z.any()).optional(),
+        }).nullable().optional(),
+    }))
+    .handler(async ({ input, context }) => {
+        try {
+            const { imageDataUrl, barcode } = input;
+
+            console.log(`[scanFromImage] Uploading image for barcode: ${barcode}`);
+
+            // 1. Upload image to Cloudinary
+            const uploadedImageUrl = await imageService.uploadFromDataUrl(
+                imageDataUrl,
+                `scan-${barcode}-${Date.now()}`
+            );
+
+            console.log(`[scanFromImage] Image uploaded: ${uploadedImageUrl}`);
+
+            // 2. Scan the barcode using the same logic as scanBarcode
+            // Check Cache
+            let product = await db.query.productsCache.findFirst({
+                where: eq(productsCache.barcode, barcode),
+            });
+
+            // Fetch from External if not in cache
+            if (!product) {
+                console.log(`[scanFromImage] Product ${barcode} not in cache. Fetching from external...`);
+
+                let externalProduct = await offClient.getProduct(barcode);
+                if (!externalProduct) {
+                    externalProduct = await obfClient.getProduct(barcode);
+                }
+                if (!externalProduct) {
+                    externalProduct = await upcClient.getProduct(barcode);
+                }
+
+                if (externalProduct) {
+                    // Upload product image to Cloudinary if available
+                    if (externalProduct.imageUrl) {
+                        externalProduct.imageUrl = await imageService.uploadFromUrl(externalProduct.imageUrl, barcode);
+                    }
+
+                    const [newProduct] = await db
+                        .insert(productsCache)
+                        .values({
+                            barcode,
+                            source: externalProduct.source,
+                            name: externalProduct.name,
+                            brand: externalProduct.brand,
+                            category: externalProduct.category,
+                            ingredientsRaw: externalProduct.ingredientsRaw,
+                            nutrition: externalProduct.nutrition,
+                            imageUrl: externalProduct.imageUrl,
+                        })
+                        .onConflictDoUpdate({
+                            target: productsCache.barcode,
+                            set: {
+                                name: externalProduct.name,
+                                brand: externalProduct.brand,
+                                category: externalProduct.category,
+                                ingredientsRaw: externalProduct.ingredientsRaw,
+                                nutrition: externalProduct.nutrition,
+                                imageUrl: externalProduct.imageUrl,
+                                lastFetched: new Date(),
+                            }
+                        })
+                        .returning();
+                    product = newProduct;
+                }
+            }
+
+            if (!product) {
+                return { found: false, barcode, imageUrl: uploadedImageUrl };
+            }
+
+            // Record Scan
+            await db.insert(scans).values({
+                userId: context.session.user.id,
+                barcode,
+            });
+
+            // Analyze
+            let analysis;
+            if (product.ingredientsRaw) {
+                const normalizedIngredients = EvaluationEngine.normalizeIngredients(product.ingredientsRaw);
+                analysis = await EvaluationEngine.analyze(
+                    context.session.user.id,
+                    normalizedIngredients,
+                    product.name || "Unknown Product"
+                );
+
+                // Save analysis to cache
+                try {
+                    await db.update(productsCache)
+                        .set({ lastAnalysis: analysis })
+                        .where(eq(productsCache.barcode, barcode));
+                } catch (err) {
+                    console.error(`[scanFromImage] Persistence FAILED:`, err);
+                }
+            } else {
+                analysis = {
+                    overallSafetyScore: 0,
+                    safetyLevel: "Caution" as const,
+                    summary: "Ingredients list not available. Please verify product details or add ingredients manually.",
+                    concerns: [],
+                    positives: [],
+                    alternatives: [],
+                };
+            }
+
+            // 3. Return result with uploaded image URL
+            return {
+                found: true,
+                barcode,
+                imageUrl: uploadedImageUrl,
+                product: {
+                    name: product.name,
+                    brand: product.brand,
+                    category: product.category,
+                    ingredients: product.ingredientsRaw,
+                    imageUrl: product.imageUrl,
+                },
+                analysis,
+            };
+        } catch (error: any) {
+            console.error("[scanFromImage] ERROR:", error);
+            throw error;
+        }
+    });
+

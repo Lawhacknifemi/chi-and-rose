@@ -60,6 +60,16 @@ export default function UsersPage() {
         },
     }));
 
+    const toggleCommentingMutation = useMutation(orpc.community.adminToggleCommentPermission.mutationOptions({
+        onSuccess: () => {
+            toast.success("User commenting permission updated");
+            queryClient.invalidateQueries({ queryKey: orpc.users.listUsers.key({}) });
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    }));
+
     if (isLoading) {
         return <div className="p-8 text-center">Loading users...</div>;
     }
@@ -153,6 +163,11 @@ export default function UsersPage() {
                                             <DropdownMenuSeparator />
                                             <DropdownMenuGroup>
                                                 <DropdownMenuLabel>Danger Zone</DropdownMenuLabel>
+                                                <DropdownMenuItem
+                                                    onClick={() => toggleCommentingMutation.mutate({ userId: user.id })}
+                                                >
+                                                    {user.canComment ? "Suspend Commenting" : "Restore Commenting"}
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     onClick={() => {
                                                         if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {

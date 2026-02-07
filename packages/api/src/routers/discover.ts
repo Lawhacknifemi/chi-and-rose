@@ -6,8 +6,7 @@ import { aiService } from "../services/ai";
 export const getFeed = protectedProcedure
     .handler(async ({ context }) => {
         const userId = context.session.user.id;
-
-        // 1. Fetch recent scans joined with product info
+        console.log(`[discover/getFeed] Fetching for User: ${userId}`);
         const recentScans = await db.select({
             name: productsCache.name,
             brand: productsCache.brand,
@@ -20,8 +19,10 @@ export const getFeed = protectedProcedure
             .limit(10);
 
         if (recentScans.length === 0) {
+            console.log(`[discover/getFeed] No recent scans found for user ${userId}.`);
             return { recommendations: [] };
         }
+        console.log(`[discover/getFeed] Found ${recentScans.length} recent scans. Generating recommendations...`);
 
         // 2. Get User Profile Context
         const profile = await db.query.userProfiles.findFirst({
@@ -39,6 +40,7 @@ export const getFeed = protectedProcedure
 
         // 3. Generate Recommendations
         const recommendations = await aiService.getRecommendations(recentScans as any[], profileContext);
+        console.log(`[discover/getFeed] Returning ${recommendations.length} recommendations.`);
 
         return { recommendations };
     });

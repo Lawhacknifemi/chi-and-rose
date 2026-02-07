@@ -53,6 +53,35 @@ export class ImageService {
             return url;
         }
     }
+
+    /**
+     * Uploads an image from a base64 data URL to Cloudinary.
+     * Returns the secure Cloudinary URL.
+     */
+    async uploadFromDataUrl(dataUrl: string, publicId: string, folder: string = "scans"): Promise<string> {
+        if (!this.isConfigured || !dataUrl) {
+            throw new Error("Cloudinary not configured or invalid data URL");
+        }
+
+        try {
+            console.log(`[ImageService] Uploading base64 image to Cloudinary...`);
+            const result = await cloudinary.uploader.upload(dataUrl, {
+                public_id: publicId,
+                folder: folder,
+                overwrite: true,
+                transformation: [
+                    { width: 1200, crop: "limit" }, // Resize if too large
+                    { quality: "auto" },            // Optimize quality
+                    { fetch_format: "auto" }        // Convert to WebP/AVIF if supported
+                ]
+            });
+            console.log(`[ImageService] Upload success: ${result.secure_url}`);
+            return result.secure_url;
+        } catch (error) {
+            console.error("[ImageService] Upload from data URL failed:", error);
+            throw new Error("Failed to upload image");
+        }
+    }
 }
 
 export const imageService = ImageService.getInstance();

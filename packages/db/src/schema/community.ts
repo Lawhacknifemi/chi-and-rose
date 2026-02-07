@@ -9,6 +9,7 @@ export const communityGroups = pgTable("community_groups", {
     name: text("name").notNull(),
     description: text("description"),
     iconUrl: text("icon_url"), // URL to the group avatar/icon
+    creatorId: text("creator_id").references(() => user.id).notNull(), // Creator of the group
     memberCount: integer("member_count").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -56,9 +57,23 @@ export const communityComments = pgTable("community_comments", {
     };
 });
 
+// Community Group Members
+export const communityGroupMembers = pgTable("community_group_members", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id").references(() => communityGroups.id).notNull(),
+    userId: text("user_id").references(() => user.id).notNull(),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (table) => {
+    return {
+        groupIdIdx: index("community_group_members_group_id_idx").on(table.groupId),
+        userIdIdx: index("community_group_members_user_id_idx").on(table.userId),
+    };
+});
+
 // Relations
 export const communityGroupsRelations = relations(communityGroups, ({ many }) => ({
     posts: many(communityPosts),
+    members: many(communityGroupMembers),
 }));
 
 export const communityPostsRelations = relations(communityPosts, ({ one, many }) => ({

@@ -10,7 +10,11 @@ console.log("[DB] Connecting to database:", env.DATABASE_URL?.replace(/:[^:@]+@/
 export * from "./schema/products";
 export * from "./schema/mobile-subscriptions";
 export * from "./schema/ingredients";
+export * from "./schema/auth";
+export * from "./schema/health-profiles";
 export * from "./schema/community";
+export * from "./schema/cms";
+export * from "./schema/cycles";
 export * from "drizzle-orm";
 export * from "./provision";
 

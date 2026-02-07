@@ -26,6 +26,7 @@ export async function handleRPC(req: Request, res: Response) {
         // We can try to detect or just assume it is one if matched
 
         const ctx = await createContext({ req });
+
         let input = req.body.json ?? req.body;
 
         // Handle GET query input

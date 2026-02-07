@@ -23,6 +23,9 @@ if (!appRouter) {
 const app = express();
 app.set("trust proxy", true); // Ensure express trusts the environment (adb/proxies)
 
+console.log("[Server Init] process.env.BETTER_AUTH_URL:", process.env.BETTER_AUTH_URL);
+console.log("[Server Init] env.BETTER_AUTH_URL (parsed):", env.BETTER_AUTH_URL);
+
 app.use((req, res, next) => {
   console.log(`[Global Debug] ${req.method} ${req.url} (path: ${req.path}) [Origin: ${req.headers.origin}]`);
   if (req.path.includes("/auth")) {
@@ -75,45 +78,76 @@ app.use(
 // Middleware Stack
 // -------------------------------------------------------------------------
 
-// Custom Handler for Form-Based Social Sign-In (Intercepts before Better-Auth)
-app.post("/api/auth/sign-in/social", express.urlencoded({ extended: true }), async (req, res, next) => {
-  if (req.headers["content-type"] === "application/x-www-form-urlencoded") {
-    console.log("[Auth Middleware] Intercepting Form Request for Social Sign-In");
-    try {
-      const { provider, callbackURL } = req.body;
+// Global Body Parsing (must come before RPC handler)
+// Create the JSON parser once, not on every request
+const jsonParser = express.json({ limit: "50mb" });
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/auth")) {
+    // Skip body parsing for Better-Auth routes (it handles its own)
+    return next();
+  }
+  // Apply the JSON parser
+  jsonParser(req, res, next);
+});
 
-      // Use the Better Auth API directly!
+// Custom Handler for Social Sign-In (Supports both Browser redirects and Native Token exchange)
+app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extended: true }), async (req, res, next) => {
+  if (req.method !== "POST") return next();
+
+  console.log(`[Auth Middleware] Intercepting Social Sign-In (${req.headers["content-type"]})`);
+  try {
+    const isJson = req.headers["content-type"]?.includes("application/json");
+    const { provider, callbackURL, idToken, accessToken } = req.body;
+
+    if (!provider) return res.status(400).send("Missing provider");
+
+    // Case 1: Browser-based (form-urlencoded) Redirect Flow
+    if (!isJson && callbackURL) {
+      console.log("[Auth Middleware] browser-based flow");
+      const response = await auth.api.signInSocial({
+        body: { provider, callbackURL },
+        asResponse: true
+      });
+
+      response.headers.forEach((value, key) => { res.setHeader(key, value); });
+      const data = await response.json();
+      if (data?.url) return res.redirect(data.url);
+      return res.status(500).send("No redirect URL returned");
+    }
+
+    // Case 2: Native Token Exchange (JSON)
+    if (isJson && (idToken || accessToken)) {
+      console.log("[Auth Middleware] native token exchange flow");
       const response = await auth.api.signInSocial({
         body: {
           provider,
-          callbackURL
+          idToken,
+          accessToken,
+          // For token exchange, callbackURL is not used for redirection, 
+          // but Better Auth might require it depending on configuration.
+          callbackURL: callbackURL || "chiandrose://app/auth/callback"
         },
-        asResponse: true // We need the headers (Set-Cookie)
+        asResponse: true
       });
 
-      // Copy headers (Crucial for Set-Cookie: better-auth.state)
-      response.headers.forEach((value, key) => {
-        res.setHeader(key, value);
-      });
+      // Mirror cookies/headers (Crucial for session persistence)
+      response.headers.forEach((value, key) => { res.setHeader(key, value); });
 
-      // Better Auth returns a JSON response with the URL
       const data = await response.json();
-
-      if (data && data.url) {
-        console.log("[Auth Middleware] Redirecting to:", data.url);
-        return res.redirect(data.url);
-      }
-
-      return res.status(500).send("No redirect URL returned from auth provider");
-    } catch (e) {
-      console.error("[Auth Middleware] Error:", e);
-      return res.status(500).send("Internal Auth Error");
+      // Better Auth usually returns the session/user or a redirect if error.
+      // If we're here, we want to ensure the mobile app gets the session JSON.
+      return res.status(response.status).json(data);
     }
+
+    // Not handled by this shim, let Better Auth handle it or next middleware
+    next();
+  } catch (e) {
+    console.error("[Auth Middleware] Error:", e);
+    return res.status(500).send("Internal Auth Error");
   }
-  next();
 });
 
-// 1. Better-Auth Handler (runs for all other requests)
+// Better-Auth Handler (runs for all auth requests)
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth")) {
@@ -124,15 +158,6 @@ app.use((req, res, next) => {
     return authHandler(req, res);
   }
   next();
-});
-
-// 2. Global Body Parsing
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api/auth")) {
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
 });
 
 // Create oRPC handler using REAL appRouter (kept for reference or fallback usage if needed)
@@ -163,8 +188,8 @@ app.use("/", async (req, res, next) => {
     return next();
   }
 
-  console.log(`[Root RPC Handler] Handling: ${req.path}`);
-  return handleRPC(req, res);
+  console.log(`[Root RPC Handler] Using standard ORPC RPCHandler`);
+  return rpcHandler.handle(req, res);
 });
 
 // Step 2: Better-Auth redirects here after login.
@@ -207,8 +232,10 @@ app.get("/login/:provider", (req, res) => {
     return res.status(400).send("Missing provider or callbackURL");
   }
 
+  const host = req.headers.host ?? "localhost:3000";
+  const protocol = req.protocol ?? "http";
   const apiUrl = "/api/auth/sign-in/social";
-  const bridgeUrl = `http://localhost:3000/login/success?target=${encodeURIComponent(callbackURL as string)}`;
+  const bridgeUrl = `${protocol}://${host}/login/success?target=${encodeURIComponent(callbackURL as string)}`;
 
   const html = `
       <!DOCTYPE html>

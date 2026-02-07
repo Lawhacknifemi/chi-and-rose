@@ -6,6 +6,8 @@ import * as subscriptionsRouter from "./subscriptions";
 import * as cmsRouter from "./cms";
 import * as usersRouter from "./users";
 import * as discoverRouter from "./discover";
+import * as communityRouter from "./community";
+import * as flowRouter from "./flow";
 
 console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 
@@ -13,6 +15,27 @@ console.log("[DEBUG] Initializing appRouter in routers/index.ts");
 export const appRouter = publicProcedure.router({
   healthCheck: publicProcedure.handler(() => {
     return "OK";
+  }),
+  // ...
+  community: publicProcedure.router({
+    getGroups: communityRouter.getGroups,
+    createGroup: communityRouter.createGroup,
+    joinGroup: communityRouter.joinGroup,
+    leaveGroup: communityRouter.leaveGroup,
+    getGroupDetails: communityRouter.getGroupDetails,
+    listGroupPosts: communityRouter.listGroupPosts,
+    getFeed: communityRouter.getFeed,
+    createPost: communityRouter.createPost,
+    createComment: communityRouter.createComment,
+    updatePost: communityRouter.updatePost,
+    getPostDetails: communityRouter.getPostDetails,
+    adminDeleteGroup: communityRouter.adminDeleteGroup,
+    adminUpdateGroup: communityRouter.adminUpdateGroup,
+    adminListAllPosts: communityRouter.adminListAllPosts,
+    adminDeletePost: communityRouter.adminDeletePost,
+    adminDeleteComment: communityRouter.adminDeleteComment,
+    adminListGroupMembers: communityRouter.adminListGroupMembers,
+    adminToggleCommentPermission: communityRouter.adminToggleCommentPermission,
   }),
   privateData: protectedProcedure.handler(({ context }) => {
     return {
@@ -36,10 +59,13 @@ export const appRouter = publicProcedure.router({
   }),
   scanner: publicProcedure.router({
     scanBarcode: scannerRouter.scanBarcode,
+    scanFromImage: scannerRouter.scanFromImage,
     getIngredientInsight: scannerRouter.getIngredientInsight,
     getRecentScans: scannerRouter.getRecentScans,
     analyzeIngredients: scannerRouter.analyzeIngredients,
     createProduct: scannerRouter.createProduct,
+    getProductDetails: scannerRouter.getProductDetails,
+    detectBarcode: scannerRouter.detectBarcode,
   }),
   cms: publicProcedure.router({
     listArticles: cmsRouter.listArticles,
@@ -62,17 +88,7 @@ export const appRouter = publicProcedure.router({
   discover: publicProcedure.router({
     getFeed: discoverRouter.getFeed,
   }),
-  community: publicProcedure.router({
-    listPosts: communityRouter.listPosts,
-    getPost: communityRouter.getPost,
-    createPost: communityRouter.createPost,
-    updatePost: communityRouter.updatePost,
-    deletePost: communityRouter.deletePost,
-    listComments: communityRouter.listComments,
-    createComment: communityRouter.createComment,
-    updateComment: communityRouter.updateComment,
-    deleteComment: communityRouter.deleteComment,
-  }),
+  flow: publicProcedure.router(flowRouter),
 });
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

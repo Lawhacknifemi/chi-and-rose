@@ -33,6 +33,9 @@ async function pushSchema() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='plan') THEN 
           ALTER TABLE "user" ADD COLUMN "plan" TEXT DEFAULT 'free' NOT NULL; 
         END IF; 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='can_comment') THEN 
+          ALTER TABLE "user" ADD COLUMN "can_comment" BOOLEAN DEFAULT true NOT NULL; 
+        END IF; 
       END $$;
     `);
 
@@ -245,12 +248,23 @@ async function pushSchema() {
         "name" TEXT NOT NULL,
         "description" TEXT,
         "icon_url" TEXT,
+        "creator_id" TEXT REFERENCES "user"("id"),
         "member_count" INTEGER DEFAULT 0 NOT NULL,
         "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
         "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
       )
     `);
     console.log("✓ Created community_groups table");
+
+    // Backfill creator_id if missing
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='community_groups' AND column_name='creator_id') THEN 
+          ALTER TABLE "community_groups" ADD COLUMN "creator_id" TEXT REFERENCES "user"("id"); 
+        END IF;
+      END $$;
+    `);
 
     // Create community_posts table
     await db.execute(sql`
@@ -282,13 +296,80 @@ async function pushSchema() {
     `);
     console.log("✓ Created community_comments table");
 
+    // Create community_group_members table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "community_group_members" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "group_id" UUID NOT NULL REFERENCES "community_groups"("id"),
+        "user_id" TEXT NOT NULL REFERENCES "user"("id"),
+        "joined_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created community_group_members table");
+
     // Create indexes for community tables
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS "community_posts_group_id_idx" ON "community_posts"("group_id");
       CREATE INDEX IF NOT EXISTS "community_posts_user_id_idx" ON "community_posts"("user_id");
       CREATE INDEX IF NOT EXISTS "community_comments_post_id_idx" ON "community_comments"("post_id");
+      CREATE INDEX IF NOT EXISTS "community_group_members_group_id_idx" ON "community_group_members"("group_id");
+      CREATE INDEX IF NOT EXISTS "community_group_members_user_id_idx" ON "community_group_members"("user_id");
     `);
-    console.log("✓ Created community table indexes");
+    // Create user_cycle_settings table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "user_cycle_settings" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" TEXT NOT NULL UNIQUE REFERENCES "user"("id") ON DELETE CASCADE,
+        "average_cycle_length" INTEGER DEFAULT 28 NOT NULL,
+        "average_period_length" INTEGER DEFAULT 5 NOT NULL,
+        "last_period_start" DATE,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created user_cycle_settings table");
+
+    // Create cycles table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "cycles" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+        "start_date" DATE NOT NULL,
+        "end_date" DATE,
+        "is_prediction" BOOLEAN DEFAULT false NOT NULL,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created cycles table");
+
+    // Create cycle_logs table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "cycle_logs" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+        "date" DATE NOT NULL,
+        "flow_intensity" TEXT,
+        "symptoms" JSONB DEFAULT '[]'::jsonb,
+        "mood" TEXT,
+        "notes" TEXT,
+        "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
+        "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
+      )
+    `);
+    console.log("✓ Created cycle_logs table");
+
+    // Create indexes for cycle tables
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS "user_cycle_settings_userId_idx" ON "user_cycle_settings"("user_id");
+      CREATE INDEX IF NOT EXISTS "cycles_userId_idx" ON "cycles"("user_id");
+      CREATE INDEX IF NOT EXISTS "cycle_logs_userId_idx" ON "cycle_logs"("user_id");
+      
+      -- Drop old index if it exists to ensure unique constraint is applied
+      DROP INDEX IF EXISTS "cycle_logs_date_idx";
+      CREATE UNIQUE INDEX IF NOT EXISTS "cycle_logs_date_idx" ON "cycle_logs"("user_id", "date");
+    `);
+    console.log("✓ Created new cycle table indexes (including unique constraints)");
 
     console.log("\n✅ All tables created successfully!");
 
