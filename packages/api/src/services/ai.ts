@@ -294,6 +294,51 @@ export class AIService {
         }
     }
 
+    async chat(
+        messages: Array<{ role: "user" | "model"; content: string }>,
+        userProfileContext: string
+    ): Promise<string> {
+        if (!this.model) return "AI Chat is currently unavailable.";
+
+        try {
+            const history = messages.slice(0, -1).map(m => ({
+                role: m.role,
+                parts: [{ text: m.content }]
+            }));
+
+            const lastMessage = messages[messages.length - 1].content;
+
+            const chat = this.model.startChat({
+                history: history,
+                generationConfig: {
+                    maxOutputTokens: 500,
+                },
+            });
+
+            const systemInstruction = `
+            You are the Chi & Rose AI Health Assistant. 
+            Your goal is to help users understand how products and ingredients affect their specific health conditions.
+            
+            User Health Profile:
+            ${userProfileContext}
+            
+            CRITICAL RULES:
+            1. Always reference the user's profile context when relevant.
+            2. Be empathetic but scientifically grounded.
+            3. Do not give direct medical prescriptions, but explain biochemical impacts.
+            4. Keep responses concise and focused on wellness and toxin-avoidance.
+            `;
+
+            const prompt = `${systemInstruction}\n\nUser: ${lastMessage}`;
+            const result = await chat.sendMessage(prompt);
+            const response = result.response;
+            return response.text();
+        } catch (error) {
+            console.error("AI Chat Failed:", error);
+            return "I apologize, but I'm having trouble connecting right now. Please try again in a moment.";
+        }
+    }
+
     private mockAnalysis(): AIAnalysisResult {
         return {
             overallSafetyScore: 85,

@@ -13,7 +13,7 @@ const profileSchema = z.object({
     dateOfBirth: z.string().or(z.date()).optional(),
 });
 
-export const getProfile = protectedProcedure
+export const getProfile: any = protectedProcedure
     .input(z.object({}))
     .handler(async ({ context }) => {
         if (!context.session) {
@@ -25,7 +25,7 @@ export const getProfile = protectedProcedure
         return profile || null;
     });
 
-export const updateProfile = protectedProcedure
+export const updateProfile: any = protectedProcedure
     .input(profileSchema)
     .handler(async ({ input, context }) => {
         if (!context.session) {
@@ -72,7 +72,7 @@ export const updateProfile = protectedProcedure
         }
     });
 
-export const dailyInsight = protectedProcedure
+export const dailyInsight: any = protectedProcedure
     .output(
         z.object({
             title: z.string(),
@@ -108,7 +108,7 @@ export const dailyInsight = protectedProcedure
 
     });
 
-export const getFeed = protectedProcedure
+export const getFeed: any = protectedProcedure
     .output(
         z.array(z.object({
             id: z.string(),
@@ -146,7 +146,7 @@ export const getFeed = protectedProcedure
         return mapped;
     });
 
-export const getArticle = protectedProcedure
+export const getArticle: any = protectedProcedure
     .input(z.object({ id: z.string() }))
     .output(z.object({
         id: z.string(),
@@ -183,4 +183,30 @@ export const getArticle = protectedProcedure
             readTime: readTime,
             publishedAt: article.publishedAt,
         };
+    });
+
+export const chat: any = protectedProcedure
+    .input(z.object({
+        messages: z.array(z.object({
+            role: z.enum(["user", "model"]),
+            content: z.string(),
+        })),
+    }))
+    .handler(async ({ input, context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized");
+        }
+
+        const profile = await db.query.userProfiles.findFirst({
+            where: eq(userProfiles.userId, context.session.user.id),
+        });
+
+        const profileContext = profile ? `
+            Goals: ${profile.goals.join(", ")}
+            Dietary Preferences: ${profile.dietaryPreferences.join(", ")}
+            Conditions: ${profile.conditions.join(", ")}
+            Symptoms: ${profile.symptoms.join(", ")}
+        ` : "No health profile completed yet.";
+
+        return await aiService.chat(input.messages, profileContext);
     });

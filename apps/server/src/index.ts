@@ -269,7 +269,7 @@ app.get("/debug-env", (req, res) => {
   });
 });
 
-app.listen(3000, () => {
+app.listen(3000, "0.0.0.0", () => {
   console.log("Server is running on http://0.0.0.0:3000");
   console.log("Google Client ID present:", !!env.GOOGLE_CLIENT_ID);
   if (env.GOOGLE_CLIENT_ID) {
