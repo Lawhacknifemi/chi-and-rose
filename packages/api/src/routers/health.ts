@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db, userProfiles, articles, eq } from "@chi-and-rose/db";
+import { db, userProfiles, articles, eq, user } from "@chi-and-rose/db";
 import { desc } from "drizzle-orm";
 import { protectedProcedure } from "../index";
 import { aiService } from "../services/ai";
@@ -209,4 +209,32 @@ export const chat: any = protectedProcedure
         ` : "No health profile completed yet.";
 
         return await aiService.chat(input.messages, profileContext);
+    });
+
+export const getIntro: any = protectedProcedure
+    .input(z.object({}))
+    .handler(async ({ context }) => {
+        if (!context.session) {
+            throw new Error("Unauthorized");
+        }
+
+        const [userData, profile] = await Promise.all([
+            db.query.user.findFirst({
+                where: eq(user.id, context.session.user.id),
+                columns: { name: true }
+            }),
+            db.query.userProfiles.findFirst({
+                where: eq(userProfiles.userId, context.session.user.id),
+            })
+        ]);
+
+        const profileContext = profile ? `
+            Goals: ${profile.goals.join(", ")}
+            Dietary Preferences: ${profile.dietaryPreferences.join(", ")}
+            Conditions: ${profile.conditions.join(", ")}
+            Symptoms: ${profile.symptoms.join(", ")}
+        ` : "No health profile completed yet.";
+
+        const userName = userData?.name || "there";
+        return await aiService.generateGreeting(userName, profileContext);
     });

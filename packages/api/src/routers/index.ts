@@ -58,6 +58,7 @@ export const appRouter = publicProcedure.router({
     getFeed: healthRouter.getFeed,
     getArticle: healthRouter.getArticle,
     chat: healthRouter.chat,
+    getIntro: healthRouter.getIntro,
   }),
   scanner: publicProcedure.router({
     scanBarcode: scannerRouter.scanBarcode,

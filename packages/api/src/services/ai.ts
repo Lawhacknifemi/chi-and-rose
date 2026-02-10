@@ -339,6 +339,35 @@ export class AIService {
         }
     }
 
+    async generateGreeting(userName: string, userProfileContext: string): Promise<string> {
+        if (!this.model) return `Hi ${userName}, I'm your AI Health Assistant. How can I help you today?`;
+
+        try {
+            const prompt = `
+            You are the Chi & Rose AI Health Assistant. 
+            Your goal is to greet the user warmly by their name and ask how they are doing in relation to their health goals or conditions.
+            
+            User Name: ${userName}
+            User Health Profile:
+            ${userProfileContext}
+            
+            CRITICAL RULES:
+            1. Be warm, empathetic, and professional.
+            2. Mention the user's name naturally.
+            3. Reference a health goal or condition from their profile if it makes sense for a greeting.
+            4. Keep it very concise (1-2 sentences).
+            5. The goal is to make the user feel seen and supported.
+            `;
+
+            const result = await this.model.generateContent(prompt);
+            const response = result.response;
+            return response.text().trim();
+        } catch (error) {
+            console.error("AI Greeting Failed:", error);
+            return `Hi ${userName}! I'm here to help you understand how products and ingredients affect your health. What's on your mind?`;
+        }
+    }
+
     private mockAnalysis(): AIAnalysisResult {
         return {
             overallSafetyScore: 85,
