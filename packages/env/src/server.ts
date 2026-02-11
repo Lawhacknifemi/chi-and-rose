@@ -14,7 +14,7 @@ export const env = createEnv({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
     // Admin Bootstrap
-    ADMIN_EMAIL: z.string().email().optional(),
+    ADMIN_EMAIL: z.string().optional(),
 
     // Email (Optional for now, defaults to mock)
     RESEND_API_KEY: z.string().optional(),

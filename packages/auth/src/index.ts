@@ -83,21 +83,29 @@ export const auth = betterAuth({
   plugins: [
     {
       id: "auto-admin",
-      schema: {
-        user: {
-          fields: {
-            role: { type: "string" }
-          }
-        }
-      },
       hooks: {
+        session: {
+          create: {
+            after: async (session) => {
+              if (env.ADMIN_EMAIL) {
+                const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
+                if (adminEmails.includes(session.user.email.toLowerCase()) && session.user.role !== "admin") {
+                  console.log(`[Auth] Promoting existing user ${session.user.email} to admin`);
+                  await db.update(schema.user)
+                    .set({ role: "admin" })
+                    .where(eq(schema.user.id, session.user.id));
+                }
+              }
+            }
+          }
+        },
         user: {
           create: {
             before: async (user) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
                 if (adminEmails.includes(user.email.toLowerCase())) {
-                  console.log(`[Auth] Auto-promoting ${user.email} to admin`);
+                  console.log(`[Auth] Auto-promoting new user ${user.email} to admin`);
                   return {
                     data: {
                       ...user,
