@@ -1,6 +1,7 @@
 import { db } from "@chi-and-rose/db";
 import * as schema from "@chi-and-rose/db/schema/auth";
 import { env } from "@chi-and-rose/env/server";
+import { eq } from "drizzle-orm";
 import { polar, checkout, portal } from "@polar-sh/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -89,11 +90,22 @@ export const auth = betterAuth({
             after: async (session) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
-                if (adminEmails.includes(session.user.email.toLowerCase()) && session.user.role !== "admin") {
-                  console.log(`[Auth] Promoting existing user ${session.user.email} to admin`);
-                  await db.update(schema.user)
-                    .set({ role: "admin" })
-                    .where(eq(schema.user.id, session.user.id));
+                const userEmail = session.user.email.toLowerCase();
+
+                if (adminEmails.includes(userEmail)) {
+                  if (session.user.role !== "admin") {
+                    console.log(`[Auth:AutoAdmin] Promoting existing user ${userEmail} to admin. List: ${adminEmails.join(", ")}`);
+                    try {
+                      await db.update(schema.user)
+                        .set({ role: "admin" })
+                        .where(eq(schema.user.id, session.user.id));
+                      console.log(`[Auth:AutoAdmin] Successfully promoted user ${userEmail} to admin`);
+                    } catch (err) {
+                      console.error(`[Auth:AutoAdmin] Failed to promote user ${userEmail}:`, err);
+                    }
+                  } else {
+                    console.log(`[Auth:AutoAdmin] User ${userEmail} is already admin`);
+                  }
                 }
               }
             }
@@ -104,8 +116,10 @@ export const auth = betterAuth({
             before: async (user) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
-                if (adminEmails.includes(user.email.toLowerCase())) {
-                  console.log(`[Auth] Auto-promoting new user ${user.email} to admin`);
+                const userEmail = user.email.toLowerCase();
+
+                if (adminEmails.includes(userEmail)) {
+                  console.log(`[Auth:AutoAdmin] Auto-promoting NEW user ${userEmail} to admin on signup`);
                   return {
                     data: {
                       ...user,
