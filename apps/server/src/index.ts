@@ -157,6 +157,72 @@ app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extende
   }
 });
 
+// Step 2: Better-Auth redirects here after login.
+app.get("/api/auth/mobile-login-success", async (req, res) => {
+  const target = req.query.target as string;
+
+  if (!target) {
+    return res.status(400).send("Missing target deep link");
+  }
+
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers
+    });
+
+    if (!session) {
+      return res.status(401).send("Authentication failed: No session found.");
+    }
+
+    const token = session.session.token;
+    res.redirect(`${target}?token=${token}`);
+
+  } catch (error) {
+    console.error("Token Bridge Error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).send("Internal Server Error: " + errorMessage);
+  }
+});
+
+app.get("/api/auth/mobile-login/:provider", (req, res) => {
+  const { provider } = req.params;
+  const { callbackURL } = req.query; // The final deep link destination
+
+  console.log(`[Auth Bridge] Request: ${req.url}`);
+  console.log(`[Auth Bridge] Provider: ${provider}`);
+  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
+
+  if (!provider || !callbackURL) {
+    return res.status(400).send("Missing provider or callbackURL");
+  }
+
+  const host = req.headers.host ?? "localhost:3000";
+  const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const apiUrl = "/api/auth/sign-in/social";
+  const bridgeUrl = `${protocol}://${host}/api/auth/mobile-login-success?target=${encodeURIComponent(callbackURL as string)}`;
+
+  const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Redirecting to ${provider}...</title>
+      </head>
+      <body>
+        <p>Redirecting to ${provider}...</p>
+        <form id="authForm" action="${apiUrl}" method="POST">
+          <input type="hidden" name="provider" value="${provider}" />
+          <input type="hidden" name="callbackURL" value="${bridgeUrl}" />
+        </form>
+        <script>
+          // Auto-submit the form
+          document.getElementById("authForm").submit();
+        </script>
+      </body>
+      </html>
+    `;
+  res.send(html);
+});
+
 // Better-Auth Handler (runs for all auth requests)
 const authHandler = toNodeHandler(auth);
 app.use((req, res, next) => {
@@ -240,73 +306,6 @@ app.use("/", async (req, res, next) => {
       res.status(500).send("Server Error");
     }
   }
-});
-
-// Step 2: Better-Auth redirects here after login.
-app.get("/login/success", async (req, res) => {
-  const target = req.query.target as string;
-
-  if (!target) {
-    return res.status(400).send("Missing target deep link");
-  }
-
-  try {
-    const session = await auth.api.getSession({
-      headers: req.headers
-    });
-
-    if (!session) {
-      return res.status(401).send("Authentication failed: No session found.");
-    }
-
-    const token = session.session.token;
-    res.redirect(`${target}?token=${token}`);
-
-  } catch (error) {
-    console.error("Token Bridge Error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).send("Internal Server Error: " + errorMessage);
-  }
-});
-
-app.get("/login/:provider", (req, res) => {
-  const { provider } = req.params;
-  const { callbackURL } = req.query; // The final deep link destination
-
-  console.log(`[Auth Bridge] Request: ${req.url}`);
-  console.log(`[Auth Bridge] Provider: ${provider}`);
-  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
-  console.log(`[Auth Bridge] Query Keys:`, Object.keys(req.query));
-
-  if (!provider || !callbackURL) {
-    return res.status(400).send("Missing provider or callbackURL");
-  }
-
-  const host = req.headers.host ?? "localhost:3000";
-  const protocol = req.protocol ?? "http";
-  const apiUrl = "/api/auth/sign-in/social";
-  const bridgeUrl = `${protocol}://${host}/login/success?target=${encodeURIComponent(callbackURL as string)}`;
-
-  const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Redirecting to ${provider}...</title>
-      </head>
-      <body>
-        <p>Redirecting to ${provider}...</p>
-        <form id="authForm" action="${apiUrl}" method="POST">
-          <input type="hidden" name="provider" value="${provider}" />
-          <input type="hidden" name="callbackURL" value="${bridgeUrl}" />
-        </form>
-        <script>
-          // Auto-submit the form
-          document.getElementById("authForm").submit();
-        </script>
-      </body>
-      </html>
-    `;
-  res.send(html);
 });
 
 app.get("/debug-env", (req, res) => {
