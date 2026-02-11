@@ -90,15 +90,27 @@ export const auth = betterAuth({
             after: async (session) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
-                const userEmail = session.user.email.toLowerCase();
+
+                // We need to fetch the full user record because the session object 
+                // might not contain the email or role in the raw hook response.
+                const userRecord = await db.query.user.findFirst({
+                  where: eq(schema.user.id, session.userId),
+                });
+
+                if (!userRecord) {
+                  console.warn(`[Auth:AutoAdmin] Could not find user record for session ${session.id} (UID: ${session.userId})`);
+                  return;
+                }
+
+                const userEmail = userRecord.email.toLowerCase();
 
                 if (adminEmails.includes(userEmail)) {
-                  if (session.user.role !== "admin") {
-                    console.log(`[Auth:AutoAdmin] Promoting existing user ${userEmail} to admin. List: ${adminEmails.join(", ")}`);
+                  if (userRecord.role !== "admin") {
+                    console.log(`[Auth:AutoAdmin] Promoting existing user ${userEmail} to admin. Matches list: ${adminEmails.join(", ")}`);
                     try {
                       await db.update(schema.user)
                         .set({ role: "admin" })
-                        .where(eq(schema.user.id, session.user.id));
+                        .where(eq(schema.user.id, userRecord.id));
                       console.log(`[Auth:AutoAdmin] Successfully promoted user ${userEmail} to admin`);
                     } catch (err) {
                       console.error(`[Auth:AutoAdmin] Failed to promote user ${userEmail}:`, err);
