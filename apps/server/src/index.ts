@@ -2,7 +2,7 @@
 import { createContext } from "@chi-and-rose/api/context";
 import { appRouter } from "@chi-and-rose/api/routers/index";
 import { auth, sendEmail } from "@chi-and-rose/auth";
-import { db, user, eq } from "@chi-and-rose/db";
+import { db, user, eq, provisionDatabase } from "@chi-and-rose/db";
 import { env } from "@chi-and-rose/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/node";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -13,6 +13,10 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import { handleRPC } from "./utils/custom-rpc";
+
+// Provision database tables on startup
+console.log("[Server Init] Provisioning database...");
+await provisionDatabase();
 
 // Debug Import
 console.log("[DEBUG] Initializing appRouter in routers/index.ts");

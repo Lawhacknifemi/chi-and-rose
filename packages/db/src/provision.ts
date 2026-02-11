@@ -18,6 +18,10 @@ export async function provisionDatabase() {
         "email" TEXT NOT NULL UNIQUE,
         "email_verified" BOOLEAN DEFAULT false NOT NULL,
         "image" TEXT,
+        "role" TEXT DEFAULT 'user' NOT NULL,
+        "is_suspended" BOOLEAN DEFAULT false NOT NULL,
+        "plan" TEXT DEFAULT 'free' NOT NULL,
+        "can_comment" BOOLEAN DEFAULT true NOT NULL,
         "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
         "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
       )
@@ -36,6 +40,9 @@ export async function provisionDatabase() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='plan') THEN 
           ALTER TABLE "user" ADD COLUMN "plan" TEXT DEFAULT 'free' NOT NULL; 
+        END IF; 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='can_comment') THEN 
+          ALTER TABLE "user" ADD COLUMN "can_comment" BOOLEAN DEFAULT true NOT NULL; 
         END IF; 
       END $$;
     `);
