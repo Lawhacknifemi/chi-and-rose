@@ -52,7 +52,7 @@ app.use((req, res, next) => {
 
       // Log state cookie existence specifically (masked)
       const stateCookie = Object.keys(cookies).find(k => k.includes('state'));
-      if (stateCookie) {
+      if (stateCookie && cookies[stateCookie]) {
         console.log(`[Auth Debug] Found state cookie: ${stateCookie} = ${cookies[stateCookie].substring(0, 10)}...`);
       } else {
         console.log(`[Auth Debug] NO STATE COOKIE FOUND!`);
@@ -120,7 +120,7 @@ app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extende
       });
 
       response.headers.forEach((value, key) => { res.setHeader(key, value); });
-      const data = await response.json();
+      const data = await response.json() as any;
       if (data?.url) return res.redirect(data.url);
       return res.status(500).send("No redirect URL returned");
     }
@@ -132,11 +132,11 @@ app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extende
         body: {
           provider,
           idToken,
-          accessToken,
-          // For token exchange, callbackURL is not used for redirection, 
-          // but Better Auth might require it depending on configuration.
+          // better-auth uses 'token' for social exchange usually, or accessToken in some versions
+          // cast to any to allow both for the bridge
+          ...(accessToken ? { accessToken } : {}),
           callbackURL: callbackURL || "chiandrose://app/auth/callback"
-        },
+        } as any,
         asResponse: true
       });
 
@@ -240,11 +240,10 @@ app.use((req, res, next) => {
 const rpcHandler = new RPCHandler({
   router: appRouter,
   createContext,
-  onError: (error) => {
+  onError: (error: any) => {
     console.error(`[RPC Error] ${error.code} (${error.status}): ${error.message}`, error.cause);
-    // Continue with default onError if needed, or we've already logged it.
   },
-});
+} as any);
 
 // Mount oRPC/Unified handlers
 app.get("/ping", (req, res) => res.send("pong"));
