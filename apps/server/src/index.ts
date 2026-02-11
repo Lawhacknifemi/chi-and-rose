@@ -72,11 +72,14 @@ app.use((req, _res, next) => {
 
 // -------------------------------------------------------------------------
 // Mobile Auth Bridge - MUST BE AT TOP to avoid middleware interference
+// Matches both /api/auth and /auth prefixes for robustness in DO routing
 // -------------------------------------------------------------------------
 
 // Step 2: Better-Auth redirects here after login.
-app.get("/api/auth/mobile-login-success", async (req, res) => {
+app.get(["/api/auth/mobile-login-success", "/auth/mobile-login-success"], async (req, res) => {
   const target = req.query.target as string;
+
+  console.log(`[Mobile Success] Hit: ${req.url} (path: ${req.path})`);
 
   if (!target) {
     return res.status(400).send("Missing target deep link");
@@ -88,10 +91,12 @@ app.get("/api/auth/mobile-login-success", async (req, res) => {
     });
 
     if (!session) {
+      console.log(`[Mobile Success] No session found in cookies.`);
       return res.status(401).send("Authentication failed: No session found.");
     }
 
     const token = session.session.token;
+    console.log(`[Mobile Success] Redirecting to target with token.`);
     res.redirect(`${target}?token=${token}`);
 
   } catch (error) {
@@ -101,13 +106,12 @@ app.get("/api/auth/mobile-login-success", async (req, res) => {
   }
 });
 
-app.get("/api/auth/mobile-login/:provider", (req, res) => {
+app.get(["/api/auth/mobile-login/:provider", "/auth/mobile-login/:provider"], (req, res) => {
   const { provider } = req.params;
   const { callbackURL } = req.query; // The final deep link destination
 
-  console.log(`[Auth Bridge] Request: ${req.url}`);
-  console.log(`[Auth Bridge] Provider: ${provider}`);
-  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
+  console.log(`[Auth Bridge] Hit: ${req.url} (path: ${req.path})`);
+  console.log(`[Auth Bridge] Provider: ${provider}, callbackURL: ${callbackURL}`);
 
   if (!provider || !callbackURL) {
     return res.status(400).send("Missing provider or callbackURL");
@@ -116,6 +120,8 @@ app.get("/api/auth/mobile-login/:provider", (req, res) => {
   const host = req.headers.host ?? "localhost:3000";
   const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
   const apiUrl = "/api/auth/sign-in/social";
+
+  // We explicitly use /api/auth path for the internal bridge URL to match standard Better-Auth setup
   const bridgeUrl = `${protocol}://${host}/api/auth/mobile-login-success?target=${encodeURIComponent(callbackURL as string)}`;
 
   const html = `

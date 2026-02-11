@@ -9,14 +9,6 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   transpilePackages: ["@chi-and-rose/api"],
-  async rewrites() {
-    return [
-      {
-        source: "/api/auth/:path*",
-        destination: `${process.env.NEXT_PUBLIC_SERVER_URL}/api/auth/:path*`,
-      },
-    ];
-  },
 };
 
 export default nextConfig;
