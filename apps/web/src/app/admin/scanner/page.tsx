@@ -1,5 +1,19 @@
 "use client";
 
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { orpc } from "@/utils/orpc";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, CheckCircle, AlertTriangle, ScanLine, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
+
+import { Html5Qrcode } from "html5-qrcode";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ScannerPage() {
@@ -21,7 +35,7 @@ export default function ScannerPage() {
     const scanMutation = useMutation(orpc.scanner.scanBarcode.mutationOptions({
         onSuccess: (data) => {
             if (data.found) {
-                toast.success("Product found: " + (data.product.name || "Unknown"));
+                toast.success("Product found: " + (data.product?.name || "Unknown"));
             }
         },
         onError: (error) => {
@@ -264,10 +278,10 @@ export default function ScannerPage() {
                                         <CardHeader className="pb-2">
                                             <div className="flex items-center justify-between">
                                                 <CardTitle>Safety Score</CardTitle>
-                                                <span className={`text-2xl font-bold ${resultData.overallSafetyScore > 80 ? "text-green-600" :
-                                                    resultData.overallSafetyScore > 50 ? "text-yellow-600" : "text-red-600"
+                                                <span className={`text-2xl font-bold ${(resultData.overallSafetyScore ?? 0) > 80 ? "text-green-600" :
+                                                    (resultData.overallSafetyScore ?? 0) > 50 ? "text-yellow-600" : "text-red-600"
                                                     }`}>
-                                                    {resultData.overallSafetyScore}/100
+                                                    {resultData.overallSafetyScore ?? 0}/100
                                                 </span>
                                             </div>
                                         </CardHeader>
@@ -280,14 +294,14 @@ export default function ScannerPage() {
                                                     resultData.safetyLevel === "Good" ? "bg-green-600 hover:bg-green-700" :
                                                         resultData.safetyLevel === "Caution" ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200" : ""
                                                 }>
-                                                    {resultData.safetyLevel.toUpperCase()}
+                                                    {(resultData.safetyLevel ?? "UNKNOWN").toUpperCase()}
                                                 </Badge>
                                                 <span className="text-sm text-muted-foreground">
                                                     {resultData.summary}
                                                 </span>
                                             </div>
 
-                                            {resultData.concerns.length > 0 && (
+                                            {resultData.concerns && resultData.concerns.length > 0 && (
                                                 <div className="space-y-3">
                                                     <h4 className="font-semibold text-sm">Health Concerns</h4>
                                                     {resultData.concerns.map((concern, i) => (
@@ -302,7 +316,7 @@ export default function ScannerPage() {
                                                 </div>
                                             )}
 
-                                            {resultData.concerns.length === 0 && (
+                                            {resultData.concerns && resultData.concerns.length === 0 && (
                                                 <div className="flex items-start gap-2 p-3 rounded-md bg-green-50 border border-green-200">
                                                     <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
                                                     <div>
@@ -349,12 +363,10 @@ export default function ScannerPage() {
                                         <p className="max-w-xs mx-auto">
                                             We couldn't find a product with barcode <span className="font-mono bg-muted px-1 rounded">{barcode}</span>.
                                         </p>
-                                        <Button asChild>
-                                            <Link href={`/admin/scanner/new?barcode=${barcode}`}>
-                                                <Plus className="mr-2 h-4 w-4" />
-                                                Add This Product
-                                            </Link>
-                                        </Button>
+                                        <Link href={`/admin/scanner/new?barcode=${barcode}`} className={buttonVariants({ variant: "default" })}>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Add This Product
+                                        </Link>
                                         <Button variant="ghost" onClick={() => scanMutation.reset()}>
                                             Try Another Scan
                                         </Button>
