@@ -131,14 +131,37 @@ app.get(["/api/auth/mobile-login/:provider", "/auth/mobile-login/:provider"], (r
         <title>Redirecting to ${provider}...</title>
       </head>
       <body>
-        <p>Redirecting to ${provider}...</p>
-        <form id="authForm" action="${apiUrl}" method="POST">
-          <input type="hidden" name="provider" value="${provider}" />
-          <input type="hidden" name="callbackURL" value="${bridgeUrl}" />
-        </form>
+        <div id="status">Redirecting to ${provider}...</div>
         <script>
-          // Auto-submit the form
-          document.getElementById("authForm").submit();
+          const payload = {
+            provider: "${provider}",
+            callbackURL: "${bridgeUrl}"
+          };
+
+          console.log("Bridge: Sending JSON payload", payload);
+
+          fetch("${apiUrl}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify(payload)
+          })
+          .then(async (res) => {
+            const data = await res.json();
+            console.log("Bridge: Received response", data);
+            if (data?.url) {
+              window.location.href = data.url;
+            } else {
+              document.getElementById("status").innerText = "Error: No redirect URL found in response.";
+              console.error("Bridge Error: Missing URL", data);
+            }
+          })
+          .catch(err => {
+            document.getElementById("status").innerText = "Error: Failed to initiate redirect.";
+            console.error("Bridge Fetch Error:", err);
+          });
         </script>
       </body>
       </html>
@@ -189,18 +212,28 @@ app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extende
 
     if (!provider) return res.status(400).send("Missing provider");
 
-    // Case 1: Browser-based (form-urlencoded) Redirect Flow
-    if (!isJson && callbackURL) {
-      console.log("[Auth Middleware] browser-based flow");
+    // Case 1: Browser/Bridge-based Redirect Flow
+    if (callbackURL) {
+      console.log(`[Auth Middleware] ${isJson ? "JSON" : "Form"} flow: initiating social sign-in for ${provider}`);
       const response = await auth.api.signInSocial({
         body: { provider, callbackURL },
         asResponse: true
       });
 
+      // Mirror cookies/headers (Crucial for session state like 'better-auth.state')
       response.headers.forEach((value, key) => { res.setHeader(key, value); });
       const data = await response.json() as any;
-      if (data?.url) return res.redirect(data.url);
-      return res.status(500).send("No redirect URL returned");
+
+      if (isJson) {
+        console.log("[Auth Middleware] Returning JSON URL to bridge");
+        return res.json(data);
+      } else {
+        if (data?.url) {
+          console.log("[Auth Middleware] Redirecting browser directly");
+          return res.redirect(data.url);
+        }
+        return res.status(500).send("No redirect URL returned");
+      }
     }
 
     // Case 2: Native Token Exchange (JSON)
