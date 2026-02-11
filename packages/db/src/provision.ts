@@ -241,8 +241,23 @@ export async function provisionDatabase() {
         "ingredients_raw" TEXT,
         "ingredients_parsed" JSONB,
         "nutrition" JSONB,
+        "image_url" TEXT,
+        "last_analysis" JSONB,
         "last_fetched" TIMESTAMP DEFAULT NOW() NOT NULL
       )
+    `);
+
+    // Backfill products_cache columns
+    await db.execute(sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products_cache' AND column_name='image_url') THEN 
+          ALTER TABLE "products_cache" ADD COLUMN "image_url" TEXT; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products_cache' AND column_name='last_analysis') THEN 
+          ALTER TABLE "products_cache" ADD COLUMN "last_analysis" JSONB; 
+        END IF;
+      END $$;
     `);
 
     await db.execute(sql`
