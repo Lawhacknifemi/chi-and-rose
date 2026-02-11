@@ -10,7 +10,7 @@ export const env = createEnv({
     POLAR_ACCESS_TOKEN: z.string().min(1),
     POLAR_PRODUCT_ID: z.string().uuid().optional(),
     POLAR_SUCCESS_URL: z.url(),
-    CORS_ORIGIN: z.url(),
+    CORS_ORIGIN: z.string(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
     // Admin Bootstrap

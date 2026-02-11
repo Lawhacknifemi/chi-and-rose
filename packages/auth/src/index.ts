@@ -38,7 +38,7 @@ export const auth = betterAuth({
     schema: schema,
   }),
   trustedOrigins: [
-    env.CORS_ORIGIN,
+    ...env.CORS_ORIGIN.split(",").map(o => o.trim()),
     "chiandrose://",
     "chiandrose://app",
     "http://127.0.0.1:3000",
@@ -75,7 +75,7 @@ export const auth = betterAuth({
   // This is SEPARATE from Google Play/App Store purchase verification
   advanced: {
     defaultCookieAttributes: {
-      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "lax",
       secure: env.NODE_ENV === "production" || env.BETTER_AUTH_URL.startsWith("https"),
       httpOnly: true,
     },

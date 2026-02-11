@@ -10,7 +10,7 @@ const baseURL = env.NEXT_PUBLIC_SERVER_URL;
 console.log("[Auth Client] Resolved BaseURL:", baseURL);
 
 export const authClient = createAuthClient({
-  baseURL,
+  baseURL: typeof window === "undefined" ? baseURL : "",
   basePath: "/api/auth", // Must match Express mounting path
   plugins: [polarClient()],
 });
