@@ -15,8 +15,14 @@ import express from "express";
 import { handleRPC } from "./utils/custom-rpc";
 
 // Provision database tables on startup
-console.log("[Server Init] Provisioning database...");
-await provisionDatabase();
+(async () => {
+  try {
+    console.log("[Server Init] Provisioning database...");
+    await provisionDatabase();
+  } catch (error) {
+    console.error("[Server Init] Provisioning failed:", error);
+  }
+})();
 
 // Debug Import
 console.log("[DEBUG] Initializing appRouter in routers/index.ts");
