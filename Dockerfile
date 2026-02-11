@@ -8,7 +8,7 @@ FROM node:20-bookworm-slim AS builder
 ENV BUN_INSTALL=/root/.bun
 ENV PATH=$BUN_INSTALL/bin:$PATH
 RUN apt-get update && apt-get install -y curl unzip && \
-    curl -fsSL https://bun.sh/install | bash -s "bun-v1.2.0" && \
+    curl -fsSL https://bun.sh/install | bash -s "bun-v1.2.1" && \
     apt-get clean
 
 WORKDIR /app
