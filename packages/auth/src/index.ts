@@ -96,42 +96,56 @@ export const auth = betterAuth({
             after: async (session) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
+                const targetUid = (session as any).userId || (session as any).user?.id;
 
-                // Use select instead of query for more direct behavior
-                const users = await db.select()
-                  .from(schema.user)
-                  .where(eq(schema.user.id, (session as any).userId))
-                  .limit(1);
-
-                const userRecord = users[0];
-                if (!userRecord) {
-                  console.log(`[Auth:AutoAdmin] session.create: User not found for ID ${(session as any).userId}`);
+                if (!targetUid) {
+                  console.log(`[Auth:AutoAdmin] session.create: No UID found in session object`);
                   return;
                 }
 
-                const userEmail = userRecord.email.toLowerCase().trim();
-                console.log(`[Auth:AutoAdmin] session.create: Checking ${userEmail} against ${adminEmails.join(", ")}`);
+                const users = await db.select()
+                  .from(schema.user)
+                  .where(eq(schema.user.id, targetUid))
+                  .limit(1);
 
-                if (adminEmails.includes(userEmail)) {
-                  if (userRecord.role !== "admin") {
-                    console.log(`[Auth:AutoAdmin] Promoting existing user ${userEmail} to admin`);
-                    await db.update(schema.user)
-                      .set({ role: "admin" })
-                      .where(eq(schema.user.id, userRecord.id));
-                  } else {
-                    console.log(`[Auth:AutoAdmin] User ${userEmail} is already admin`);
-                  }
+                const userRecord = users[0];
+                if (!userRecord) return;
+
+                const userEmail = userRecord.email.toLowerCase().trim();
+                console.log(`[Auth:AutoAdmin] session.create: Checking ${userEmail}`);
+
+                if (adminEmails.includes(userEmail) && userRecord.role !== "admin") {
+                  console.log(`[Auth:AutoAdmin] session.create: Promoting ${userEmail} to admin`);
+                  await db.update(schema.user)
+                    .set({ role: "admin" })
+                    .where(eq(schema.user.id, userRecord.id));
+                }
+              }
+            }
+          },
+          set: {
+            after: async (session) => {
+              if (env.ADMIN_EMAIL) {
+                const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
+                const targetUid = (session as any).userId;
+                if (!targetUid) return;
+
+                const users = await db.select().from(schema.user).where(eq(schema.user.id, targetUid)).limit(1);
+                const ur = users[0];
+                if (ur && adminEmails.includes(ur.email.toLowerCase().trim()) && ur.role !== "admin") {
+                  console.log(`[Auth:AutoAdmin] session.set: Promoting ${ur.email} to admin`);
+                  await db.update(schema.user).set({ role: "admin" }).where(eq(schema.user.id, ur.id));
                 }
               }
             }
           }
         },
         signIn: {
-          after: async (data) => {
+          after: async (data: any) => {
             if (env.ADMIN_EMAIL && data.user) {
               const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
               const userEmail = data.user.email.toLowerCase().trim();
-              console.log(`[Auth:AutoAdmin] signIn.after: Checking ${userEmail} against ${adminEmails.join(", ")}`);
+              console.log(`[Auth:AutoAdmin] signIn.after: Checking ${userEmail}`);
 
               if (adminEmails.includes(userEmail) && (data.user as any).role !== "admin") {
                 console.log(`[Auth:AutoAdmin] signIn.after: Promoting ${userEmail} to admin`);
