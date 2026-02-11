@@ -75,8 +75,8 @@ export const auth = betterAuth({
   // This is SEPARATE from Google Play/App Store purchase verification
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "lax",
-      secure: false, // Force insecure for localhost debugging
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      secure: env.NODE_ENV === "production" || env.BETTER_AUTH_URL.startsWith("https"),
       httpOnly: true,
     },
   },
