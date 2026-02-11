@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Submodules (Mobile App is huge and not needed for Web/Server build)
+chi-and-rose-mobile-app-
+
+# Build outputs
+.next
+dist
+build
+bin
+out
+
+# Environment variables
+.env
+.env*.local
+deploy.env
+
+# IDEs and editors
+.vscode
+.idea
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Turbo
+.turbo
+
+# Testing
+coverage
+.nyc_output
+
+# Git
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Docs and metadata
+docs
+Cursor System spec.md
+SoftwareSpec.md
+README.md
+LICENSE
+package.json.bak
+bun.lock (if using npm/yarn in build)

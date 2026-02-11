@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  transpilePackages: ["@chi-and-rose/api", "@chi-and-rose/db", "@chi-and-rose/auth"],
+  transpilePackages: ["@chi-and-rose/api"],
   async rewrites() {
     return [
       {
