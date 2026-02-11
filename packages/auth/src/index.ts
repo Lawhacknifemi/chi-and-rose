@@ -17,6 +17,12 @@ export const auth = betterAuth({
   },
   onNodeInit: async () => {
     console.log(`[Auth Package] Better-Auth Initialized with baseURL: ${env.BETTER_AUTH_URL}/api/auth`);
+    if (env.ADMIN_EMAIL) {
+      const list = env.ADMIN_EMAIL.split(",").map(e => e.trim());
+      console.log(`[Auth:AutoAdmin] Configured Admin Emails: ${list.join(", ")}`);
+    } else {
+      console.log(`[Auth:AutoAdmin] No ADMIN_EMAIL configured`);
+    }
   },
   user: {
     additionalFields: {
@@ -91,34 +97,36 @@ export const auth = betterAuth({
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
 
-                // We need to fetch the full user record because the session object 
-                // might not contain the email or role in the raw hook response.
+                // Fetching user to check email and role
                 const userRecord = await db.query.user.findFirst({
-                  where: eq(schema.user.id, session.userId),
+                  where: eq(schema.user.id, (session as any).userId),
                 });
 
-                if (!userRecord) {
-                  console.warn(`[Auth:AutoAdmin] Could not find user record for session ${session.id} (UID: ${session.userId})`);
-                  return;
-                }
+                if (!userRecord) return;
 
-                const userEmail = userRecord.email.toLowerCase();
+                const userEmail = userRecord.email.toLowerCase().trim();
 
-                if (adminEmails.includes(userEmail)) {
-                  if (userRecord.role !== "admin") {
-                    console.log(`[Auth:AutoAdmin] Promoting existing user ${userEmail} to admin. Matches list: ${adminEmails.join(", ")}`);
-                    try {
-                      await db.update(schema.user)
-                        .set({ role: "admin" })
-                        .where(eq(schema.user.id, userRecord.id));
-                      console.log(`[Auth:AutoAdmin] Successfully promoted user ${userEmail} to admin`);
-                    } catch (err) {
-                      console.error(`[Auth:AutoAdmin] Failed to promote user ${userEmail}:`, err);
-                    }
-                  } else {
-                    console.log(`[Auth:AutoAdmin] User ${userEmail} is already admin`);
-                  }
+                if (adminEmails.includes(userEmail) && userRecord.role !== "admin") {
+                  console.log(`[Auth:AutoAdmin] Hook[session.create]: Promoting ${userEmail} to admin`);
+                  await db.update(schema.user)
+                    .set({ role: "admin" })
+                    .where(eq(schema.user.id, userRecord.id));
                 }
+              }
+            }
+          }
+        },
+        signIn: {
+          after: async (data) => {
+            if (env.ADMIN_EMAIL && data.user) {
+              const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
+              const userEmail = data.user.email.toLowerCase().trim();
+
+              if (adminEmails.includes(userEmail) && (data.user as any).role !== "admin") {
+                console.log(`[Auth:AutoAdmin] Hook[signIn.after]: Promoting ${userEmail} to admin`);
+                await db.update(schema.user)
+                  .set({ role: "admin" })
+                  .where(eq(schema.user.id, data.user.id));
               }
             }
           }
@@ -128,10 +136,10 @@ export const auth = betterAuth({
             before: async (user) => {
               if (env.ADMIN_EMAIL) {
                 const adminEmails = env.ADMIN_EMAIL.split(",").map((e) => e.trim().toLowerCase());
-                const userEmail = user.email.toLowerCase();
+                const userEmail = user.email.toLowerCase().trim();
 
                 if (adminEmails.includes(userEmail)) {
-                  console.log(`[Auth:AutoAdmin] Auto-promoting NEW user ${userEmail} to admin on signup`);
+                  console.log(`[Auth:AutoAdmin] Hook[user.create]: Auto-promoting ${userEmail} to admin`);
                   return {
                     data: {
                       ...user,
