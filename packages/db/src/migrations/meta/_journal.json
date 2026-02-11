@@ -22,6 +22,13 @@
       "when": 1770291529700,
       "tag": "0002_bumpy_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770826463278,
+      "tag": "0003_oval_squadron_supreme",
+      "breakpoints": true
     }
   ]
 }
