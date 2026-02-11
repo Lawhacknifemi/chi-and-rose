@@ -5,11 +5,15 @@ import { createContext } from "@chi-and-rose/api/context";
 export async function handleRPC(req: Request, res: Response) {
     const tid = Math.random().toString(36).substring(7);
     try {
-        const path = req.path.replace(/^\/rpc\//, "").replace(/^\//, "");
+        // Use originalUrl to ensure we have the full path even if mounted on a sub-route
+        // Strip /rpc/ or /api/ if present at the start
+        const fullPath = req.originalUrl.split('?')[0]; // Remove query string
+        const path = fullPath.replace(/^\/rpc\//, "").replace(/^\/rpc$/, "").replace(/^\//, "");
+
         // Support both styles: users/listUsers and users.listUsers
         const parts = path.includes("/") ? path.split("/") : path.split(".");
 
-        console.log(`[CustomRPC:${tid}] Resolving path: ${parts.join(".")} (URL: ${req.url})`);
+        console.log(`[CustomRPC:${tid}] Resolving path: ${parts.join(".")} (Full: ${fullPath}, Rel: ${req.path})`);
 
         // Traverse router
         let current: any = appRouter;
