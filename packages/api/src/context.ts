@@ -20,7 +20,7 @@ interface CreateContextOptions {
  * - Authorization header (Bearer token)
  * - Custom headers
  */
-export async function createContext(opts: CreateContextOptions): Promise<{ session: any; req: Request; requestId: string }> {
+export async function createContext(opts: CreateContextOptions): Promise<any> {
   const requestId = Math.random().toString(36).substring(7);
   console.log(`[Context:${requestId}] Starting context creation for ${opts.req.method} ${opts.req.url}`);
 

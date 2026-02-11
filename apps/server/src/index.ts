@@ -180,50 +180,64 @@ const rpcHandler = new RPCHandler({
   },
 });
 
-// Mount oRPC handlers
+// Mount oRPC/Unified handlers
 app.get("/ping", (req, res) => res.send("pong"));
 
-app.use("/rpc", async (req, res, next) => {
+// 1. Unified Authentication Handler
+// Standard toNodeHandler handles req/res correctly
+app.use(["/api/auth", "/auth"], authHandler);
+
+// 2. Unified RPC Handler
+app.use(["/rpc", "/cms", "/health", "/scanner", "/users", "/discover", "/community", "/flow"], async (req, res, next) => {
   // Canary for liveness check
   if (req.path === '/__canary') {
-    const v = "v_12345";
+    const v = "v_unified_v2";
     console.log(`[RPC] Canary hit! ${v}`);
     return res.type('text').send(`CHIRP ${v}`);
   }
 
-  console.log(`[RPC Handler] Delegating to Custom Handler: ${req.url}`);
+  // Health check specialty if bare
+  if (req.path === '/healthCheck') {
+    return rpcHandler.handle(req, res);
+  }
+
+  console.log(`[Unified RPC] Route hit: ${req.originalUrl} -> delegating to handleRPC`);
   try {
     await handleRPC(req, res);
   } catch (err) {
-    console.error("[RPC Handler] Custom handler crashed:", err);
+    console.error("[Unified RPC] Handler crashed:", err);
     if (!res.headersSent) {
-      res.status(500).json({ error: "Internal RPC Error" });
+      res.status(500).json({ error: "Internal Server Error" });
     }
   }
 });
 
-// Fallback: Mount RPC at root for stripped paths
+// Fallback: Health check and dynamic root routing
 app.use("/", async (req, res, next) => {
-  // Skip if already handled by other routes
-  if (req.path === "/" || req.path.startsWith("/api/auth") || req.path.startsWith("/login") || req.path.startsWith("/debug-env") || req.path === "/ping") {
+  // Skip if already handled by other routes or static paths
+  if (req.path === "/" || req.path === "/ping" || req.path.startsWith("/login") || req.path.startsWith("/debug-env")) {
     return next();
   }
 
-  console.log(`[Root RPC Handler] Attempting ORPC for: ${req.url}`);
-  try {
-    // We MUST handle the promise to avoid unhandled rejections or hanging
-    await rpcHandler.handle(req, res);
+  // Better-Auth uses /api/auth or stripped etc.
+  if (req.path.startsWith("/api/auth") || req.path.startsWith("/auth")) {
+    return authHandler(req, res);
+  }
 
-    // If we're here and headers weren't sent, it means ORPC didn't match.
-    // We MUST call next() or send 404.
+  console.log(`[Root Catchall] Attempting resolution for: ${req.url}`);
+  try {
+    // If it looks like an RPC call (has multiple segments or matches our routers)
+    // we use handleRPC which is more robust for stripped paths.
+    await handleRPC(req, res);
+
+    // If still not sent, we pass to next
     if (!res.headersSent) {
-      console.log(`[Root RPC Handler] No match found for ${req.url}, passing to next.`);
       next();
     }
   } catch (err) {
-    console.error("[Root RPC Handler] CRASH:", err);
+    console.error("[Root Catchall] Error:", err);
     if (!res.headersSent) {
-      res.status(500).send("Internal Server Error during RPC routing");
+      res.status(500).send("Server Error");
     }
   }
 });
