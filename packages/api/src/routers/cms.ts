@@ -30,8 +30,17 @@ export const listArticles = adminProcedure
         isPublished: z.boolean(),
         createdAt: z.date(),
     })))
-    .handler(async () => {
-        return await db.select().from(articles).orderBy(desc(articles.createdAt));
+    .handler(async ({ context }) => {
+        const tid = (context as any).requestId || 'unknown';
+        console.log(`[CMS:${tid}] listArticles: Fetching articles from DB...`);
+        try {
+            const results = await db.select().from(articles).orderBy(desc(articles.createdAt));
+            console.log(`[CMS:${tid}] listArticles: Found ${results.length} articles.`);
+            return results;
+        } catch (error) {
+            console.error(`[CMS:${tid}] listArticles: DB ERROR:`, error);
+            throw error;
+        }
     });
 
 export const getArticle = adminProcedure

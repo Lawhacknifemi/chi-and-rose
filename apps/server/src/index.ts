@@ -170,14 +170,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// Create oRPC handler using REAL appRouter (kept for reference or fallback usage if needed)
+// Create oRPC handler using REAL appRouter
 const rpcHandler = new RPCHandler({
   router: appRouter,
   createContext,
-  onError,
+  onError: (error) => {
+    console.error(`[RPC Error] ${error.code} (${error.status}): ${error.message}`, error.cause);
+    // Continue with default onError if needed, or we've already logged it.
+  },
 });
 
 // Mount oRPC handlers
+app.get("/ping", (req, res) => res.send("pong"));
+
 app.use("/rpc", async (req, res, next) => {
   // Canary for liveness check
   if (req.path === '/__canary') {
@@ -187,19 +192,40 @@ app.use("/rpc", async (req, res, next) => {
   }
 
   console.log(`[RPC Handler] Delegating to Custom Handler: ${req.url}`);
-  return handleRPC(req, res);
+  try {
+    await handleRPC(req, res);
+  } catch (err) {
+    console.error("[RPC Handler] Custom handler crashed:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal RPC Error" });
+    }
+  }
 });
 
-
-// Fallback: Mount RPC at root for stripped paths (e.g. /healthCheck instead of /rpc/healthCheck)
+// Fallback: Mount RPC at root for stripped paths
 app.use("/", async (req, res, next) => {
   // Skip if already handled by other routes
-  if (req.path.startsWith("/api/auth") || req.path.startsWith("/login") || req.path.startsWith("/debug-env")) {
+  if (req.path === "/" || req.path.startsWith("/api/auth") || req.path.startsWith("/login") || req.path.startsWith("/debug-env") || req.path === "/ping") {
     return next();
   }
 
-  console.log(`[Root RPC Handler] Using standard ORPC RPCHandler`);
-  return rpcHandler.handle(req, res);
+  console.log(`[Root RPC Handler] Attempting ORPC for: ${req.url}`);
+  try {
+    // We MUST handle the promise to avoid unhandled rejections or hanging
+    await rpcHandler.handle(req, res);
+
+    // If we're here and headers weren't sent, it means ORPC didn't match.
+    // We MUST call next() or send 404.
+    if (!res.headersSent) {
+      console.log(`[Root RPC Handler] No match found for ${req.url}, passing to next.`);
+      next();
+    }
+  } catch (err) {
+    console.error("[Root RPC Handler] CRASH:", err);
+    if (!res.headersSent) {
+      res.status(500).send("Internal Server Error during RPC routing");
+    }
+  }
 });
 
 // Step 2: Better-Auth redirects here after login.

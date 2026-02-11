@@ -20,24 +20,30 @@ interface CreateContextOptions {
  * - Authorization header (Bearer token)
  * - Custom headers
  */
-export async function createContext(opts: CreateContextOptions) {
-  // Better-Auth's getSession supports both cookies and Authorization headers
-  // It will automatically extract the session token from:
-  // - Cookie: better-auth.session_token=...
-  // - Authorization: Bearer <session_token>
-  console.log(`[Context] Incoming Request: ${opts.req.method} ${opts.req.url} (Host: ${opts.req.headers.host})`);
-  const session = await auth.api.getSession({
-    headers: fromNodeHeaders(opts.req.headers),
-  });
-  console.log(`[Context] Session found: ${!!session}`, session?.user?.id);
-  if (!session && opts.req.headers.authorization) {
-    console.log(`[Context] Authorization header present but session NOT found. Token mismatch?`);
-  }
+export async function createContext(opts: CreateContextOptions): Promise<{ session: any; req: Request; requestId: string }> {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[Context:${requestId}] Starting context creation for ${opts.req.method} ${opts.req.url}`);
 
-  return {
-    session,
-    req: opts.req,
-  };
+  try {
+    console.log(`[Context:${requestId}] Calling better-auth getSession...`);
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(opts.req.headers),
+    });
+    console.log(`[Context:${requestId}] Session retrieval complete. Found: ${!!session} (User: ${session?.user?.id || 'none'})`);
+
+    if (!session && opts.req.headers.authorization) {
+      console.log(`[Context:${requestId}] WARN: Authorization header present but no session found.`);
+    }
+
+    return {
+      session,
+      req: opts.req,
+      requestId,
+    };
+  } catch (error) {
+    console.error(`[Context:${requestId}] CRITICAL ERROR during session retrieval:`, error);
+    throw error; // Let oRPC handle the error
+  }
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;
