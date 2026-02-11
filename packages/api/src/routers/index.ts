@@ -86,6 +86,7 @@ export const appRouter = publicProcedure.router({
     listUsers: usersRouter.listUsers,
     toggleSuspension: usersRouter.toggleSuspension,
     updateUserPlan: usersRouter.updateUserPlan,
+    updateUserRole: usersRouter.updateUserRole,
     deleteUser: usersRouter.deleteUser,
   }),
   discover: publicProcedure.router({
