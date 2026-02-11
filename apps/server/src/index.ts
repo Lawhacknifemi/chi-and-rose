@@ -36,7 +36,7 @@ app.set("trust proxy", true); // Ensure express trusts the environment (adb/prox
 console.log("[Server Init] process.env.BETTER_AUTH_URL:", process.env.BETTER_AUTH_URL);
 console.log("[Server Init] env.BETTER_AUTH_URL (parsed):", env.BETTER_AUTH_URL);
 
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   console.log(`[Global Debug] ${req.method} ${req.url} (path: ${req.path}) [Origin: ${req.headers.origin}]`);
   if (req.path.includes("/auth")) {
     const cookieHeader = req.headers.cookie;
@@ -44,9 +44,11 @@ app.use((req, res, next) => {
       const cookies: Record<string, string> = {};
       cookieHeader.split(';').forEach(cookie => {
         const parts = cookie.split('=');
-        const name = parts[0].trim();
-        const value = parts.slice(1).join('=');
-        cookies[name] = value;
+        if (parts.length >= 2) {
+          const name = parts[0].trim();
+          const value = parts.slice(1).join('=');
+          cookies[name] = value;
+        }
       });
       console.log(`[Auth Debug] Cookies keys:`, Object.keys(cookies));
 
@@ -66,6 +68,76 @@ app.use((req, res, next) => {
     }
   }
   next();
+});
+
+// -------------------------------------------------------------------------
+// Mobile Auth Bridge - MUST BE AT TOP to avoid middleware interference
+// -------------------------------------------------------------------------
+
+// Step 2: Better-Auth redirects here after login.
+app.get("/api/auth/mobile-login-success", async (req, res) => {
+  const target = req.query.target as string;
+
+  if (!target) {
+    return res.status(400).send("Missing target deep link");
+  }
+
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers
+    });
+
+    if (!session) {
+      return res.status(401).send("Authentication failed: No session found.");
+    }
+
+    const token = session.session.token;
+    res.redirect(`${target}?token=${token}`);
+
+  } catch (error) {
+    console.error("Token Bridge Error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).send("Internal Server Error: " + errorMessage);
+  }
+});
+
+app.get("/api/auth/mobile-login/:provider", (req, res) => {
+  const { provider } = req.params;
+  const { callbackURL } = req.query; // The final deep link destination
+
+  console.log(`[Auth Bridge] Request: ${req.url}`);
+  console.log(`[Auth Bridge] Provider: ${provider}`);
+  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
+
+  if (!provider || !callbackURL) {
+    return res.status(400).send("Missing provider or callbackURL");
+  }
+
+  const host = req.headers.host ?? "localhost:3000";
+  const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const apiUrl = "/api/auth/sign-in/social";
+  const bridgeUrl = `${protocol}://${host}/api/auth/mobile-login-success?target=${encodeURIComponent(callbackURL as string)}`;
+
+  const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Redirecting to ${provider}...</title>
+      </head>
+      <body>
+        <p>Redirecting to ${provider}...</p>
+        <form id="authForm" action="${apiUrl}" method="POST">
+          <input type="hidden" name="provider" value="${provider}" />
+          <input type="hidden" name="callbackURL" value="${bridgeUrl}" />
+        </form>
+        <script>
+          // Auto-submit the form
+          document.getElementById("authForm").submit();
+        </script>
+      </body>
+      </html>
+    `;
+  res.send(html);
 });
 
 app.use(
@@ -155,72 +227,6 @@ app.use("/api/auth/sign-in/social", express.json(), express.urlencoded({ extende
     console.error("[Auth Middleware] Error:", e);
     return res.status(500).send("Internal Auth Error");
   }
-});
-
-// Step 2: Better-Auth redirects here after login.
-app.get("/api/auth/mobile-login-success", async (req, res) => {
-  const target = req.query.target as string;
-
-  if (!target) {
-    return res.status(400).send("Missing target deep link");
-  }
-
-  try {
-    const session = await auth.api.getSession({
-      headers: req.headers
-    });
-
-    if (!session) {
-      return res.status(401).send("Authentication failed: No session found.");
-    }
-
-    const token = session.session.token;
-    res.redirect(`${target}?token=${token}`);
-
-  } catch (error) {
-    console.error("Token Bridge Error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).send("Internal Server Error: " + errorMessage);
-  }
-});
-
-app.get("/api/auth/mobile-login/:provider", (req, res) => {
-  const { provider } = req.params;
-  const { callbackURL } = req.query; // The final deep link destination
-
-  console.log(`[Auth Bridge] Request: ${req.url}`);
-  console.log(`[Auth Bridge] Provider: ${provider}`);
-  console.log(`[Auth Bridge] callbackURL: ${callbackURL}`);
-
-  if (!provider || !callbackURL) {
-    return res.status(400).send("Missing provider or callbackURL");
-  }
-
-  const host = req.headers.host ?? "localhost:3000";
-  const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-  const apiUrl = "/api/auth/sign-in/social";
-  const bridgeUrl = `${protocol}://${host}/api/auth/mobile-login-success?target=${encodeURIComponent(callbackURL as string)}`;
-
-  const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Redirecting to ${provider}...</title>
-      </head>
-      <body>
-        <p>Redirecting to ${provider}...</p>
-        <form id="authForm" action="${apiUrl}" method="POST">
-          <input type="hidden" name="provider" value="${provider}" />
-          <input type="hidden" name="callbackURL" value="${bridgeUrl}" />
-        </form>
-        <script>
-          // Auto-submit the form
-          document.getElementById("authForm").submit();
-        </script>
-      </body>
-      </html>
-    `;
-  res.send(html);
 });
 
 // Better-Auth Handler (runs for all auth requests)
