@@ -50,6 +50,16 @@ export default function UsersPage() {
         },
     }));
 
+    const updateRoleMutation = useMutation(orpc.users.updateUserRole.mutationOptions({
+        onSuccess: () => {
+            toast.success("User role updated");
+            queryClient.invalidateQueries({ queryKey: orpc.users.listUsers.key({}) });
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    }));
+
     const deleteUserMutation = useMutation(orpc.users.deleteUser.mutationOptions({
         onSuccess: () => {
             toast.success("User deleted");
@@ -158,6 +168,22 @@ export default function UsersPage() {
                                                     disabled={user.plan === "free"}
                                                 >
                                                     Revoke Pro
+                                                </DropdownMenuItem>
+                                            </DropdownMenuGroup>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuGroup>
+                                                <DropdownMenuLabel>Role Management</DropdownMenuLabel>
+                                                <DropdownMenuItem
+                                                    onClick={() => updateRoleMutation.mutate({ id: user.id, role: "admin" })}
+                                                    disabled={user.role === "admin"}
+                                                >
+                                                    Grant Admin
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => updateRoleMutation.mutate({ id: user.id, role: "user" })}
+                                                    disabled={user.role === "user"}
+                                                >
+                                                    Revoke Admin
                                                 </DropdownMenuItem>
                                             </DropdownMenuGroup>
                                             <DropdownMenuSeparator />

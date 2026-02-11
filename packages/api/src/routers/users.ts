@@ -51,6 +51,15 @@ export const updateUserPlan = adminProcedure
         return { success: true, plan: input.plan };
     });
 
+export const updateUserRole = adminProcedure
+    .input(z.object({ id: z.string(), role: z.enum(["admin", "user"]) }))
+    .handler(async ({ input }) => {
+        await db.update(user)
+            .set({ role: input.role })
+            .where(eq(user.id, input.id));
+        return { success: true, role: input.role };
+    });
+
 export const deleteUser = adminProcedure
     .input(z.object({ id: z.string() }))
     .handler(async ({ input }) => {
