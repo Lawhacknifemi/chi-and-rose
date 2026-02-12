@@ -249,6 +249,7 @@ export const getIntro: any = protectedProcedure
             Symptoms: ${profile.symptoms.join(", ")}
         ` : "No health profile completed yet.";
 
-        const userName = userData?.name || "there";
-        return await aiService.generateGreeting(userName, profileContext);
+        const fullName = userData?.name || "there";
+        const firstName = fullName.trim().split(/\s+/)[0] || "there";
+        return await aiService.generateGreeting(firstName, profileContext);
     });
