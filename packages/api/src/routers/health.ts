@@ -19,10 +19,24 @@ export const getProfile: any = protectedProcedure
         if (!context.session) {
             return null; // Return null for unauthenticated to restart flow, or throw error depending on UI logic
         }
-        const profile = await db.query.userProfiles.findFirst({
-            where: eq(userProfiles.userId, context.session.user.id),
-        });
-        return profile || null;
+
+        const [profile, userData] = await Promise.all([
+            db.query.userProfiles.findFirst({
+                where: eq(userProfiles.userId, context.session.user.id),
+            }),
+            db.query.user.findFirst({
+                where: eq(user.id, context.session.user.id),
+                columns: { name: true, image: true }
+            })
+        ]);
+
+        if (!profile && !userData) return null;
+
+        return {
+            ...(profile || {}),
+            name: userData?.name,
+            image: userData?.image,
+        };
     });
 
 export const updateProfile: any = protectedProcedure
