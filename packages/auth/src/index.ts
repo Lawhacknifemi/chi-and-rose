@@ -75,8 +75,16 @@ export const auth = betterAuth({
     },
     apple: {
       clientId: env.APPLE_CLIENT_ID || "",
-      clientSecret: env.APPLE_CLIENT_SECRET || "",
-      enabled: !!env.APPLE_CLIENT_ID,
+      clientSecret: env.APPLE_CLIENT_SECRET
+        ? env.APPLE_CLIENT_SECRET
+        : (env.APPLE_TEAM_ID && env.APPLE_KEY_ID && env.APPLE_PRIVATE_KEY)
+          ? {
+            teamId: env.APPLE_TEAM_ID,
+            keyId: env.APPLE_KEY_ID,
+            privateKey: env.APPLE_PRIVATE_KEY,
+          }
+          : "",
+      enabled: !!env.APPLE_CLIENT_ID && (!!env.APPLE_CLIENT_SECRET || (!!env.APPLE_TEAM_ID && !!env.APPLE_KEY_ID && !!env.APPLE_PRIVATE_KEY)),
     },
   },
   // This is SEPARATE from Google Play/App Store purchase verification

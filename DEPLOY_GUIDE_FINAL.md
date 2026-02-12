@@ -20,8 +20,10 @@ Before deploying, strictly ensure you have these values ready. Add them to the *
 *   `POLAR_SUCCESS_URL`: `${APP_URL}/success` (or placeholder).
 *   `CORS_ORIGIN`: `${APP_URL}` (or `*` for initial testing).
 
-### Optional (But may be validated if not skipped)
-*   `GOOGLE_CLIENT_ID`, `APPLE_CLIENT_ID`, etc. (if using OAuth).
+### Optional (But necessary for Social Login)
+*   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: For Google Sign In.
+*   `APPLE_CLIENT_ID`: Your Apple Service ID or Bundle ID.
+*   `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`: For automated Apple Client Secret generation.
 
 > **Tip:** If you see "Readiness probe failed" initially, check the logs. It usually means these variables are missing.
 
